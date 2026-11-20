@@ -1,0 +1,39 @@
+{
+  "preset_name": "custom-university-example",
+  "description": "Example override profile for adapting institutional margins, header text, and citation style",
+  "university_name": "示例大学",
+  "school_name": "示例学院",
+  "citation_style": "gb7714",
+  "page": {
+    "width_dxa": 11906,
+    "height_dxa": 16838,
+    "margins_cm": {
+      "top": 3.0,
+      "bottom": 2.5,
+      "left": 2.6,
+      "right": 2.6,
+      "header": 2.0,
+      "footer": 1.75,
+      "gutter": 0.0
+    },
+    "margins_dxa": {
+      "top": 1701,
+      "bottom": 1418,
+      "left": 1474,
+      "right": 1474,
+      "header": 1134,
+      "footer": 992,
+      "gutter": 0
+    },
+    "mirror_margins": true,
+    "odd_even_headers": true
+  },
+  "typography": {
+    "body_line_pt": 20,
+    "ref_line_pt": 16,
+    "cjk_body_font": "宋体",
+    "cjk_heading_font": "黑体",
+    "latin_font": "Times New Roman",
+    "figure_latin_font": "Arial"
+  }
+}

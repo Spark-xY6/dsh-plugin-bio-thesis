@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dsh-plugin-bio-thesis"
+version = "0.2.0"
+description = "Generate and audit Word thesis drafts using school templates and export a 65-item review checklist"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.scripts]
+bio-thesis = "bio_thesis:main"
+
+[tool.setuptools]
+package-dir = { "" = "skills/bio-thesis-formatter/scripts" }
+py-modules = ["bio_thesis", "init_thesis_docx", "audit_thesis_docx", "docx_package"]

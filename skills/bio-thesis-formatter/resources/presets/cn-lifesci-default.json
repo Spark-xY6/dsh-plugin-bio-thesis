@@ -1,0 +1,91 @@
+{
+  "preset_name": "cn-lifesci-default",
+  "description": "Optional life-sciences citation preset with superscript numeric citations",
+  "university_name": "【学校名称】",
+  "school_name": "【培养单位】",
+  "citation_style": "nature",
+  "page": {
+    "width_dxa": 11906,
+    "height_dxa": 16838,
+    "margins_cm": {
+      "top": 3.0,
+      "bottom": 2.5,
+      "left": 2.6,
+      "right": 2.6,
+      "header": 2.0,
+      "footer": 1.75,
+      "gutter": 0.0
+    },
+    "margins_dxa": {
+      "top": 1701,
+      "bottom": 1418,
+      "left": 1474,
+      "right": 1474,
+      "header": 1134,
+      "footer": 992,
+      "gutter": 0
+    },
+    "mirror_margins": true,
+    "odd_even_headers": true
+  },
+  "typography": {
+    "body_line_pt": 20,
+    "ref_line_pt": 16,
+    "cjk_body_font": "宋体",
+    "cjk_heading_font": "黑体",
+    "latin_font": "Times New Roman",
+    "figure_latin_font": "Arial"
+  },
+  "modes": {
+    "phd-thesis": {
+      "cover_lines": ["博士研究生学位论文"],
+      "header_template": "{university}博士学位论文",
+      "include_copyright": true,
+      "include_declaration": true,
+      "full_cover_fields": true,
+      "chapter_profile": "thesis",
+      "self_term": "本论文",
+      "word_count_range": null
+    },
+    "master-thesis": {
+      "cover_lines": ["硕士研究生学位论文"],
+      "header_template": "{university}硕士学位论文",
+      "include_copyright": true,
+      "include_declaration": true,
+      "full_cover_fields": true,
+      "chapter_profile": "thesis",
+      "self_term": "本论文",
+      "word_count_range": null
+    },
+    "proposal": {
+      "cover_lines": ["{school}", "研究生学位论文开题报告"],
+      "header_template": "{university}{school}　开题报告",
+      "include_copyright": false,
+      "include_declaration": false,
+      "full_cover_fields": false,
+      "chapter_profile": "proposal",
+      "self_term": "本研究",
+      "word_count_range": [8000, 20000]
+    },
+    "midterm": {
+      "cover_lines": ["{school}", "研究生中期考核书面报告"],
+      "header_template": "{university}{school}　中期考核报告",
+      "include_copyright": false,
+      "include_declaration": false,
+      "full_cover_fields": false,
+      "chapter_profile": "proposal",
+      "self_term": "本研究",
+      "word_count_range": [5000, null]
+    },
+    "rotation": {
+      "cover_lines": ["{school}", "研究生实验室轮转报告"],
+      "header_template": "{university}{school}　轮转报告",
+      "include_copyright": false,
+      "include_declaration": false,
+      "full_cover_fields": false,
+      "chapter_profile": "rotation",
+      "self_term": "本工作",
+      "word_count_range": [2000, null]
+    }
+  }
+}

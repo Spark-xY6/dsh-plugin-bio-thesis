@@ -1,0 +1,4 @@
+# DeepSeek Harness profile layer patch for dsh-plugin-bio-thesis
+- insert:
+    - id: skill-bio-thesis
+      name: 'dsh-plugin-bio-thesis'
