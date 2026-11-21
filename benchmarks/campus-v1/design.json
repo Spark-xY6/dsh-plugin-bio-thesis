@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "seed": "campus-forms-2026-11",
+  "labels": ["PAGE", "NUMBER", "STYLE", "DIRECT", "MEDIA", "IDENTITY", "TOC"],
+  "cases": {
+    "A01": ["STYLE", "MEDIA"],
+    "A02": [],
+    "A03": ["PAGE", "IDENTITY"],
+    "A04": ["NUMBER", "TOC"],
+    "A05": ["DIRECT", "IDENTITY"],
+    "A06": ["PAGE", "NUMBER", "MEDIA"],
+    "A07": [],
+    "A08": ["STYLE", "DIRECT", "TOC"]
+  },
+  "generation_items": ["valid_docx", "title_replaced", "author_masked", "no_private_identity", "original_text", "page_geometry", "section_numbering", "page_fields", "toc_field", "body_style", "embedded_media", "header_text"],
+  "trials": 3,
+  "quality_rule": "On these fixtures only, a clear descriptive accuracy advantage requires at least +0.15 paired median micro-F1, at least 2 fewer FN over the 14 positives in at least 2 of 3 pairs, no median increase in the number of FP and median generated-document score at least the baseline. All arms have to complete all 8 documents in every counted pair.",
+  "efficiency_rule": "A descriptive efficiency advantage requires all 3 matched pairs to complete, a median of at most one additional wrong binary cell per 56, no lower median generation score, and at least 30% lower median successful wall time or 30% fewer median tool calls counted identically in both arms. Identify efficiency separately from accuracy.",
+  "limits": "Two clean controls, six defect-positive files, 14 positive and 42 negative labels. Small fixed synthetic corpus. No population-level, all-schools, model-independent or novelty-priority inference."
+}
