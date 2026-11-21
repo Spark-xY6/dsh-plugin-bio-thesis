@@ -67,5 +67,5 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/host" --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.5
       - name: Boot a clean DSH profile and use its installed skill
         run: |
-          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
-          DSH_PLUGIN_SPEC="$RUNNER_TEMP/dsh-plugin-bio-thesis-0.2.0.tgz" DSH_RUNTIME="$RUNNER_TEMP/host" node tests/dsh-host.mjs
+          package_file=$(npm pack --silent --ignore-scripts --pack-destination "$RUNNER_TEMP")
+          DSH_PLUGIN_SPEC="$RUNNER_TEMP/$package_file" DSH_RUNTIME="$RUNNER_TEMP/host" node tests/dsh-host.mjs
