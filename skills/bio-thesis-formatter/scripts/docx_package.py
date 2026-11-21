@@ -6,6 +6,7 @@ from collections import Counter
 from contextlib import contextmanager
 import os
 from pathlib import Path
+import posixpath
 import re
 import tempfile
 import unicodedata
@@ -16,6 +17,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 W = f'{{{W_NS}}}'
 CT = 'http://schemas.openxmlformats.org/package/2006/content-types'
+PACKAGE_RELS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+OFFICE_DOCUMENT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument'
 DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
 DOTX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'
 XML_NS = 'http://www.w3.org/XML/1998/namespace'
@@ -52,6 +55,36 @@ def write_package(destination: Path, items: dict[str, bytes], overwrite: bool) -
                 package.writestr(name, data)
 
 
+def resolve_target(source_part: str, target: str) -> str:
+    """Resolve an internal relationship to a ZIP member relative to its source part."""
+    path = target.partition('#')[0]
+    if not path:
+        return source_part if target.startswith('#') else ''
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source_part), path)).lstrip('/')
+
+
+def word_main_type(types: ET.Element | None) -> str:
+    if types is None or types.tag != f'{{{CT}}}Types':
+        raise ValueError('Missing or invalid [Content_Types].xml')
+    mains = [el.get('ContentType') for el in types.findall(f'{{{CT}}}Override')
+             if el.get('PartName') == '/word/document.xml']
+    if not mains:
+        mains = [el.get('ContentType') for el in types.findall(f'{{{CT}}}Default')
+                 if el.get('Extension', '').lower() == 'xml']
+    if len(mains) != 1 or mains[0] not in (DOCX, DOTX):
+        raise ValueError('[Content_Types].xml must declare a supported Word main part')
+    return mains[0]
+
+
+def has_main_relationship(root: ET.Element | None) -> bool:
+    if root is None or root.tag != f'{{{PACKAGE_RELS}}}Relationships':
+        return False
+    mains = [r for r in root.findall(f'{{{PACKAGE_RELS}}}Relationship') if r.get('Type') == OFFICE_DOCUMENT]
+    return (len(mains) == 1 and bool(mains[0].get('Id'))
+            and mains[0].get('TargetMode', 'Internal') == 'Internal'
+            and resolve_target('', mains[0].get('Target', '')) == 'word/document.xml')
+
+
 def read_template(path: Path) -> tuple[dict[str, bytes], str]:
     if path.suffix.lower() not in {'.docx', '.dotx'}:
         raise ValueError('Template must be a macro-free .docx or .dotx')
@@ -64,17 +97,15 @@ def read_template(path: Path) -> tuple[dict[str, bytes], str]:
         raise ValueError('Macro-enabled templates are unsupported')
     if any(name.lower().startswith('_xmlsignatures/') for name in items):
         raise ValueError('Signed templates are unsupported because edits invalidate the signature')
-    types = ET.fromstring(items['[Content_Types].xml'])
-    mains = [el.get('ContentType') for el in types.findall(f'{{{CT}}}Override')
-             if el.get('PartName') == '/word/document.xml']
-    if len(mains) != 1 or mains[0] not in (DOCX, DOTX):
-        raise ValueError('Unsupported Word main part content type')
-    if (mains[0] == DOTX) != (path.suffix.lower() == '.dotx'):
+    main_type = word_main_type(ET.fromstring(items['[Content_Types].xml']) if '[Content_Types].xml' in items else None)
+    if not has_main_relationship(ET.fromstring(items['_rels/.rels']) if '_rels/.rels' in items else None):
+        raise ValueError('_rels/.rels must contain one internal officeDocument relationship to word/document.xml')
+    if (main_type == DOTX) != (path.suffix.lower() == '.dotx'):
         raise ValueError('Template suffix and Word package type disagree')
     root = ET.fromstring(items['word/document.xml'])
-    if root.find(W + 'body') is None:
+    if root.tag != W + 'document' or root.find(W + 'body') is None:
         raise ValueError('Template has no supported Word document body')
-    return items, mains[0]
+    return items, main_type
 
 
 def _children(node):
@@ -124,6 +155,13 @@ def fill_template(items: dict[str, bytes], package_type: str, values: dict[str, 
         for override in types.getElementsByTagNameNS(CT, 'Override'):
             if override.getAttribute('PartName') == '/word/document.xml':
                 override.setAttribute('ContentType', DOCX)
+                break
+        else:
+            prefix = types.documentElement.prefix
+            override = types.createElementNS(CT, f'{prefix}:Override' if prefix else 'Override')
+            override.setAttribute('PartName', '/word/document.xml')
+            override.setAttribute('ContentType', DOCX)
+            types.documentElement.appendChild(override)
         items['[Content_Types].xml'] = types.toxml(encoding='utf-8')
     filled: Counter = Counter()
     if not values:

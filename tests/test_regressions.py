@@ -197,6 +197,166 @@ class RegressionTests(unittest.TestCase):
         checks = self.audit(candidate, '--citation-style', 'gb7714', '--mode', 'proposal', returncode=1)
         self.assertEqual(checks['Ref-2-7']['status'], 'FAIL')
 
+    def test_direct_format_policy_scope_and_locations(self):
+        # Independent style IDs for a synthetic field-report template.
+        def field_styles(root):
+            root.clear()
+            for sid, kind in [('FieldNotes', 'paragraph'), ('FieldDetail', 'paragraph'),
+                              ('MapLegend', 'paragraph'), ('KeyPhrase', 'character')]:
+                style = ET.SubElement(root, W + 'style', {W + 'styleId': sid, W + 'type': kind})
+                if sid == 'FieldNotes':
+                    style.set(W + 'default', '1')
+                if sid == 'FieldDetail':
+                    ET.SubElement(style, W + 'basedOn', {W + 'val': 'FieldNotes'})
+
+        def field_body(root):
+            body = root.find(W + 'body')
+            section = body.find(W + 'sectPr')
+            body.clear()
+            for xml in (
+                '<p><pPr><rPr><sz val="36"/></rPr></pPr>'
+                '<r><rPr><rFonts hint="eastAsia"/><b/><i/></rPr><t>Survey</t></r></p>',
+                '<p><pPr><pStyle val="MapLegend"/></pPr><r><rPr><sz val="40"/></rPr><t>Legend</t></r></p>',
+                '<tbl><tr><tc><p><pPr><pStyle val="FieldDetail"/></pPr>'
+                '<r><rPr><rStyle val="KeyPhrase"/></rPr><t>Field reading</t></r></p></tc></tr></tbl>',
+            ):
+                # Attribute names in WordprocessingML are also namespace-qualified.
+                block = ET.fromstring(xml)
+                for node in block.iter():
+                    node.tag = W + node.tag
+                    for key in list(node.attrib):
+                        node.set(W + key, node.attrib.pop(key))
+                body.append(block)
+            body.append(section)
+
+        source = self.work / 'field-template.docx'
+        modify(MASTER, source, {'word/styles.xml': field_styles, MAIN: field_body})
+        config = self.work / 'rules.json'
+        config.write_text(json.dumps({'audit': {'direct_formatting': [
+            {'id': 'field-font', 'paragraph_style': 'FieldNotes', 'forbid': ['font_size', 'font_face', 'color']},
+        ]}}), encoding='utf-8')
+        options = ('--template', source, '--profile-config', config)
+        check_id = 'DirectFormat-field-font'
+        self.assertEqual(self.audit(source, *options)[check_id]['status'], 'PASS')
+
+        def introduce_overrides(root):
+            first, _, third = root.iter(W + 'p')
+            ET.SubElement(first.find(f'./{W}r/{W}rPr'), W + 'sz', {W + 'val': '21'})
+            props = third.find(f'./{W}r/{W}rPr')
+            for tag, attr, value in [('szCs', 'val', '31'), ('rFonts', 'eastAsia', 'Example Font'),
+                                     ('color', 'val', 'AA1122')]:
+                ET.SubElement(props, W + tag, {W + attr: value})
+
+        changed = self.work / 'field-changes.docx'
+        modify(source, changed, {MAIN: introduce_overrides})
+        self.assertNotIn(check_id, self.audit(changed, '--template', source))
+        finding = self.audit(changed, *options, returncode=1)[check_id]
+        self.assertEqual(finding['status'], 'FAIL')
+        self.assertEqual(finding['details'], ['paragraph=1 properties=font_size',
+                         'paragraph=3 properties=font_size,font_face,color'])
+
+        def insert_history(root):
+            para = next(root.iter(W + 'p'))
+            for change in ('del', 'moveFrom'):
+                run = ET.SubElement(ET.SubElement(para, W + change), W + 'r')
+                ET.SubElement(ET.SubElement(run, W + 'rPr'), W + 'sz', {W + 'val': '11'})
+                ET.SubElement(run, W + 'delText').text = 'Old reading'
+            props = para.find(f'./{W}r/{W}rPr')
+            old = ET.SubElement(ET.SubElement(props, W + 'rPrChange'), W + 'rPr')
+            ET.SubElement(old, W + 'color', {W + 'val': '000000'})
+            table = next(root.iter(W + 'tbl'))
+            deleted_row = ET.SubElement(table, W + 'tr')
+            ET.SubElement(ET.SubElement(deleted_row, W + 'trPr'), W + 'del')
+            old_para = ET.SubElement(ET.SubElement(deleted_row, W + 'tc'), W + 'p')
+            old_run = ET.SubElement(old_para, W + 'r')
+            ET.SubElement(ET.SubElement(old_run, W + 'rPr'), W + 'sz', {W + 'val': '11'})
+            ET.SubElement(old_run, W + 't').text = 'Retired record'
+
+        revised = self.work / 'field-history.docx'
+        modify(source, revised, {MAIN: insert_history})
+        findings = self.audit(revised, *options, returncode=1)
+        self.assertEqual(findings['Pkg-Clean']['status'], 'FAIL')
+        self.assertEqual(findings[check_id]['status'], 'PASS')
+
+    def test_direct_format_policy_rejects_mistyped_rules(self):
+        config = self.work / 'rules.json'
+        rule = {'id': 'body', 'paragraph_style': 'BodyTextZH', 'forbid': ['font_size']}
+        for key, rules, message in (
+                ('direct_formating', [rule], 'Unknown audit option'),
+                ('direct_formatting', [{**rule, 'forbid': ['szze']}], '.forbid'),
+                ('direct_formatting', [{**rule, 'paragraph_style': 'AbsentStyle'}], '.paragraph_style'),
+                ('direct_formatting', [{**rule, 'typo': True}], 'requires exactly'),
+                ('direct_formatting', [rule, rule], '.id must be unique')):
+            with self.subTest(key=key, rules=rules):
+                config.write_text(json.dumps({'audit': {key: rules}}), encoding='utf-8')
+                failed = self.invoke('audit', '--docx', MASTER, '--profile-config', config, returncode=2)
+                self.assertIn(message, failed.stderr)
+
+    def test_existing_live_citation_switch(self):
+        source = self.work / 'draft.docx'
+        self.invoke('init', '--output', source)
+        doc = self.work / 'live-field.docx'
+
+        def add_field(root):
+            paragraph = next(root.iter(W + 'p'))
+            ET.SubElement(paragraph, W + 'fldSimple', {W + 'instr': 'ADDIN EN.CITE'})
+
+        modify(source, doc, {MAIN: add_field})
+        config = self.work / 'rules.json'
+        for allow in (True, False):
+            config.write_text(json.dumps({'audit': {'allow_live_citations': allow}}), encoding='utf-8')
+            findings = self.audit(doc, '--profile-config', config, returncode=0 if allow else 1)
+            self.assertEqual(findings['Ref-2-7']['status'], 'PASS' if allow else 'FAIL')
+
+    def test_required_package_parts_and_absolute_internal_targets(self):
+        source = self.work / 'package-source.docx'
+        self.invoke('init', '--output', source)
+        for part, finding in [('[Content_Types].xml', 'Pkg-XML'), ('_rels/.rels', 'Pkg-Rels')]:
+            with self.subTest(part=part):
+                broken = self.work / 'missing-part.docx'
+                with ZipFile(source) as src, ZipFile(broken, 'w') as dst:
+                    for name in src.namelist():
+                        if name != part:
+                            dst.writestr(name, src.read(name))
+                self.assertEqual(self.audit(broken, returncode=1)[finding]['status'], 'FAIL')
+                rejected = self.invoke('init', '--template', broken, '--output', self.work / 'bad.docx', returncode=1)
+                self.assertIn(part, rejected.stderr)
+                self.assertFalse((self.work / 'bad.docx').exists())
+        wrong = self.work / 'wrong-main.docx'
+        def misdirect(root):
+            rel = next(r for r in root if r.get('Type', '').endswith('/officeDocument'))
+            rel.set('Target', 'word/styles.xml')
+        modify(source, wrong, {'_rels/.rels': misdirect})
+        self.assertEqual(self.audit(wrong, returncode=1)['Pkg-Rels']['status'], 'FAIL')
+
+        def absolute_targets(root):
+            for rel in root:
+                if rel.get('TargetMode') != 'External' and '/' not in rel.get('Target', ''):
+                    rel.set('Target', '/word/' + rel.get('Target'))
+        absolute = self.work / 'absolute-rels.docx'
+        modify(source, absolute, {'word/_rels/document.xml.rels': absolute_targets})
+        checks = self.audit(absolute, '--template', source)
+        self.assertEqual(checks['Pkg-Rels']['status'], 'PASS')
+        self.assertEqual(checks['Layout-SecNum']['status'], 'PASS')
+
+    def test_chemical_subscripts_and_ambiguous_plain_text(self):
+        source = self.work / 'chem-template.docx'
+        modify(MASTER, source, {MAIN: custom_body})
+        for formatting, expected in [(True, 'PASS'), (False, 'WARN')]:
+            def insert_formula(root):
+                paragraph = next(root.iter(W + 'p'))
+                for value, vertical in [(' H', None), ('2', 'subscript'), ('O / Mg', None),
+                                        ('2+', 'superscript'), (' / CO2sensor', None)]:
+                    run = ET.SubElement(paragraph, W + 'r')
+                    if formatting and vertical:
+                        ET.SubElement(ET.SubElement(run, W + 'rPr'), W + 'vertAlign', {W + 'val': vertical})
+                    ET.SubElement(run, W + 't').text = value
+            candidate = self.work / 'formula.docx'
+            modify(source, candidate, {MAIN: insert_formula})
+            finding = self.audit(candidate, '--template', source)['Err-4-5-6']
+            self.assertEqual(finding['status'], expected)
+            self.assertEqual(len(finding['details']), 0 if formatting else 2)
+
 
 if __name__ == '__main__':
     unittest.main()

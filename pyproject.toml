@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dsh-plugin-bio-thesis"
-version = "0.2.0"
+version = "0.3.0"
 description = "Generate and audit Word thesis drafts using school templates and export a 65-item review checklist"
 readme = "README.md"
 requires-python = ">=3.10"

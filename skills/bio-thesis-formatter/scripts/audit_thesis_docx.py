@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import asdict, dataclass
 
-from docx_package import identity_parts, read_template, same_path, staged_file
+from docx_package import has_main_relationship, identity_parts, read_template, resolve_target, same_path, staged_file, word_main_type
 from init_thesis_docx import _resolve_page_dxa, load_effective_preset
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -56,6 +56,7 @@ NO_SPACE_UNIT_RE = re.compile(
 )
 CJK_TIME_RE = re.compile(r"(?:\d|\s)(?:小时|分钟|秒)(?:后|内|时|，|。|、|）|$)")
 ENG_TIME_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:hr|hrs|min|mins|sec|secs)\b", re.IGNORECASE)
+FORMULA_RE = re.compile(r'(?<![A-Za-z0-9_])(?:H2O|CO2|Ca2\+|Mg2\+|O2|N2)(?![A-Za-z0-9_])')
 SUBPANEL_DUNHAO_RE = re.compile(r"图\s*[A-D1-9]\d*\.\d+\s*[A-Z](?:、[A-Z])+")
 CJK_ASCII_PUNCT_RE = re.compile(r"[\u4e00-\u9fff][,;:\(\)][\u4e00-\u9fff]")
 ABBR_PAREN_RE = re.compile(r"([^（(]{2,45}?)[（(](?:([^（）()]+?)[，,]\s*)?([A-Za-z][A-Za-z0-9\-/]{1,14})[）)]")
@@ -134,8 +135,7 @@ def _section_numbering(sections, parsed, rels_map):
         kind = section_type.get(W + 'val', 'nextPage') if section_type is not None else 'nextPage'
         for tag, inherited in (('headerReference', headers), ('footerReference', footers)):
             for reference in section.findall(W + tag):
-                target = rels_map.get(reference.get(R + 'id', ''), '').lstrip('/')
-                part = target if target.startswith('word/') else 'word/' + target
+                part = rels_map.get(reference.get(R + 'id', ''), '')
                 inherited[reference.get(W + 'type', 'default')] = parsed.get(part)
         active = tuple(sorted(role for role, root in footers.items()
                               if root is not None and _instructions(root, 'PAGE')))
@@ -149,7 +149,8 @@ def _template_snapshot(template_path: str) -> dict:
     parts = {k: ET.fromstring(v) for k, v in items.items() if k.endswith(('.xml', '.rels'))}
     document = parts['word/document.xml']
     rels = parts.get('word/_rels/document.xml.rels')
-    rels_map = {r.get('Id', ''): r.get('Target', '').lstrip('/') for r in rels} if rels is not None else {}
+    rels_map = {r.get('Id', ''): resolve_target('word/document.xml', r.get('Target', ''))
+                for r in rels if r.get('TargetMode', 'Internal') == 'Internal'} if rels is not None else {}
     sections = list(document.iter(W + 'sectPr'))
     return {
         'settings': parts.get('word/settings.xml'),
@@ -194,6 +195,118 @@ def _use_audit_policy(results, preset, template, explicit_citation):
             check.summary = ('模板未指定引文体系，请用 --citation-style 或配置指定' if unknown_citations
                              else '此校级规则未启用，按本校规范复核')
             check.details = []
+
+
+DIRECT_PROPERTIES = {
+    'font_size': (W + 'sz', W + 'szCs'),
+    'font_face': (W + 'rFonts',),
+    'color': (W + 'color',),
+}
+FONT_ASSIGNMENTS = {W + name for name in ('ascii', 'hAnsi', 'eastAsia', 'cs', 'asciiTheme',
+                                           'hAnsiTheme', 'eastAsiaTheme', 'cstheme', 'csTheme')}
+
+
+def _live_word_items(parent, tag):
+    """Yield top-level matches in main-story order, omitting deleted content and text boxes."""
+    stack = list(reversed(parent))
+    while stack:
+        item = stack.pop()
+        if item.tag in (W + 'del', W + 'moveFrom', W + 'txbxContent'):
+            continue
+        if item.tag == W + 'tr' and item.find(f'./{W}trPr/{W}del') is not None:
+            continue
+        if item.tag == W + 'tc' and item.find(f'./{W}tcPr/{W}cellDel') is not None:
+            continue
+        if item.tag == tag:
+            yield item
+        else:
+            stack.extend(reversed(item))
+
+
+def _formula_review(paragraph, styles):
+    text = []
+    alignment = []
+    p_chain = styles._chain(_p_style(paragraph) or styles.default_paragraph_style)
+    for run in _live_word_items(paragraph, W + 'r'):
+        value = ''.join(t.text or '' for t in run.findall(W + 't'))
+        if not value:
+            continue
+        char_style = run.find(f'./{W}rPr/{W}rStyle')
+        r_chain = styles._chain(char_style.get(W + 'val')) if char_style is not None else []
+        align = styles.default_vertical_alignment
+        for node in [*p_chain, *r_chain, run]:
+            override = node.find(f'./{W}rPr/{W}vertAlign')
+            if override is not None:
+                align = override.get(W + 'val')
+        text.append(value)
+        alignment.extend([align] * len(value))
+    issues = []
+    for match in FORMULA_RE.finditer(''.join(text)):
+        formula = match.group()
+        first = match.start() + formula.index('2')
+        count = 2 if formula.endswith('+') else 1
+        expected = 'superscript' if count == 2 else 'subscript'
+        if any(value != expected for value in alignment[first:first + count]):
+            issues.append(f'请核对化学式 {formula} 的数字或电荷是否按要求排为上下标')
+    return issues
+
+
+def _direct_format_checks(policy, styles, body):
+    if not isinstance(policy, dict):
+        raise ValueError('audit must be a JSON object')
+    supported = {'template_checks', 'disabled_checks', 'allow_live_citations', 'direct_formatting'}
+    unknown = policy.keys() - supported
+    if unknown:
+        raise ValueError(f'Unknown audit option(s): {", ".join(sorted(unknown))}. '
+                         f'Supported: {", ".join(sorted(supported))}.')
+    if 'allow_live_citations' in policy and not isinstance(policy['allow_live_citations'], bool):
+        raise ValueError('audit.allow_live_citations must be true or false')
+    rules = policy.get('direct_formatting', [])
+    if not isinstance(rules, list):
+        raise ValueError('audit.direct_formatting must be a list of rules')
+    if not rules:
+        return []
+    paragraph_styles = {sid for sid, st in styles.styles.items() if st.get(W + 'type') == 'paragraph'}
+    seen = set()
+    results = []
+    for index, rule in enumerate(rules):
+        where = f'audit.direct_formatting[{index}]'
+        if not isinstance(rule, dict) or set(rule) != {'id', 'paragraph_style', 'forbid'}:
+            raise ValueError(f'{where} requires exactly id, paragraph_style and forbid')
+        rule_id, sid, forbid = rule['id'], rule['paragraph_style'], rule['forbid']
+        if not isinstance(rule_id, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', rule_id) or rule_id in seen:
+            raise ValueError(f'{where}.id must be unique and match [A-Za-z0-9][A-Za-z0-9._-]*')
+        seen.add(rule_id)
+        if not isinstance(sid, str) or sid not in paragraph_styles:
+            raise ValueError(f'{where}.paragraph_style {sid!r} is not a paragraph style ID in word/styles.xml')
+        if (not isinstance(forbid, list) or not forbid
+                or any(not isinstance(key, str) or key not in DIRECT_PROPERTIES for key in forbid)
+                or len(set(forbid)) != len(forbid)):
+            raise ValueError(f'{where}.forbid must list distinct properties from {", ".join(DIRECT_PROPERTIES)}')
+
+        applicable = {style_id for style_id in paragraph_styles if styles.styles[sid] in styles._chain(style_id)}
+        checked = 0
+        details = []
+        for number, paragraph in enumerate(_live_word_items(body, W + 'p'), 1):
+            if (_p_style(paragraph) or styles.default_paragraph_style) not in applicable:
+                continue
+            checked += 1
+            found = set()
+            for run in _live_word_items(paragraph, W + 'r'):
+                props = run.find(W + 'rPr')
+                if props is not None and any(t.text for t in run.findall(W + 't')):
+                    for prop in props:
+                        # A script-selection hint alone does not assign a font family.
+                        if prop.tag != W + 'rFonts' or FONT_ASSIGNMENTS.intersection(prop.attrib):
+                            found.add(prop.tag)
+            violations = [key for key in forbid if found.intersection(DIRECT_PROPERTIES[key])]
+            if violations:
+                details.append(f'paragraph={number} properties={",".join(violations)}')
+        status = 'FAIL' if details else 'PASS' if checked else 'WARN'
+        summary = (f'样式 {sid} 及其派生样式共匹配 {checked} 段，检出直接格式 {len(details)} 段'
+                   if checked else f'正文中无段落使用 {sid} 或其派生样式，请核对所选样式与检查范围')
+        results.append(CheckResult('DirectFormat-' + rule_id, '自定义段落样式规则', status, summary, details))
+    return results
 
 
 def _border_visible(border) -> bool:
@@ -276,10 +389,15 @@ def _nature_author_title(runs, paragraph, styles) -> list[str]:
 class StyleResolver:
     def __init__(self, styles_root: ET.Element | None) -> None:
         self.styles: dict[str, ET.Element] = {}
+        self.default_paragraph_style: str | None = None
+        self.default_vertical_alignment: str | None = None
         self.default_fonts: dict[str, str] = {}
         self.default_p_jc: str = "left"
         if styles_root is None:
             return
+        va = styles_root.find(f'./{W}docDefaults/{W}rPrDefault/{W}rPr/{W}vertAlign')
+        if va is not None:
+            self.default_vertical_alignment = va.get(W + 'val')
         rdef = styles_root.find(f"./{W}docDefaults/{W}rPrDefault/{W}rPr/{W}rFonts")
         if rdef is not None:
             for k in ("ascii", "eastAsia", "hAnsi", "cs"):
@@ -290,6 +408,8 @@ class StyleResolver:
             sid = st.get(f"{W}styleId")
             if sid:
                 self.styles[sid] = st
+                if st.get(W + 'type') == 'paragraph' and st.get(W + 'default') in ('1', 'true', 'on'):
+                    self.default_paragraph_style = sid
 
     def _chain(self, sid: str | None) -> list[ET.Element]:
         out: list[ET.Element] = []
@@ -477,7 +597,12 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                     xml_errors.append(f"{name}: {exc}")
         if len(names) != len(zf.namelist()):
             xml_errors.append('ZIP 中存在重复部件路径')
-        if 'word/document.xml' not in parsed or parsed['word/document.xml'].find(W + 'body') is None:
+        try:
+            word_main_type(parsed.get('[Content_Types].xml'))
+        except ValueError as exc:
+            xml_errors.append(str(exc))
+        main = parsed.get('word/document.xml')
+        if main is None or main.tag != W + 'document' or main.find(W + 'body') is None:
             xml_errors.append('缺少有效的 Word 主文档及正文')
         results.append(
             CheckResult(
@@ -493,6 +618,8 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
 
         # Relationship closure
         broken_rels: list[str] = []
+        if not has_main_relationship(parsed.get('_rels/.rels')):
+            broken_rels.append('_rels/.rels must contain one internal officeDocument relationship to word/document.xml')
         rels_root = parsed.get("word/_rels/document.xml.rels")
         rels_map: dict[str, str] = {}
         if rels_root is not None:
@@ -501,15 +628,8 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 tgt = rel.get("Target", "")
                 if rel.get("TargetMode") == "External":
                     continue
-                rels_map[rid] = tgt
-                parts: list[str] = []
-                for seg in ("word/" + tgt).split("/"):
-                    if seg == "..":
-                        if parts:
-                            parts.pop()
-                    elif seg and seg != ".":
-                        parts.append(seg)
-                norm = "/".join(parts)
+                norm = resolve_target('word/document.xml', tgt)
+                rels_map[rid] = norm
                 if norm not in names:
                     broken_rels.append(f"{rid} -> {tgt} ({norm})")
         results.append(
@@ -517,7 +637,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 "Pkg-Rels",
                 "工程基础-关系闭环",
                 "PASS" if not broken_rels else "FAIL",
-                "document.xml.rels 内部目标全部存在" if not broken_rels else f"存在 {len(broken_rels)} 个悬空关系",
+                "Word 主文档入口和主文档内部关系目标通过检查" if not broken_rels else f"发现 {len(broken_rels)} 项 Word 包关系问题",
                 broken_rels[:10],
             )
         )
@@ -560,6 +680,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         styles = StyleResolver(parsed.get("word/styles.xml"))
         body = doc_root.find(f"./{W}body")
         assert body is not None
+        results.extend(_direct_format_checks(preset.get('audit', {}), styles, body))
         blocks = list(body)
         all_paras = list(body.iter(f"{W}p"))
         body_paras = [el for el in blocks if el.tag == f"{W}p"]
@@ -636,8 +757,8 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 s1_t = []
                 for hr in s1_hdrs:
                     tgt = rels_map.get(hr.get(f"{R}id", ""), "")
-                    if tgt and f"word/{tgt}" in parsed:
-                        s1_t.append("".join(t.text or "" for t in parsed[f"word/{tgt}"].iter(f"{W}t")).strip())
+                    if tgt in parsed:
+                        s1_t.append("".join(t.text or "" for t in parsed[tgt].iter(f"{W}t")).strip())
                 if any(s1_t):
                     sec_issues.append("Section 1（封面/声明）不应显示页眉文字")
             if numbering[0][4]:
@@ -999,6 +1120,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
 
         # Units, subscripts, Chapter 2 time units, punctuation, enzymes, genes/species, abbreviations
         unit_issues: list[str] = []
+        formula_review: list[str] = []
         punct_issues: list[str] = []
         bio_italic_issues: list[str] = []
         user_genes = [g.strip() for g in (args.genes or "").split(",") if g.strip()]
@@ -1013,9 +1135,8 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 unit_issues.append(f"单位 u 应改 µ/μ: {m.group(0)!r}")
             for m in NO_SPACE_UNIT_RE.finditer(t):
                 unit_issues.append(f"数字与单位间缺空格: {m.group(0)!r}")
-            for formula in ("H2O", "CO2", "Ca2+", "Mg2+", "O2", "N2"):
-                if formula in t:
-                    unit_issues.append(f"化学式 {formula} 疑未使用上下标格式")
+            if FORMULA_RE.search(t):
+                formula_review.extend(_formula_review(p, styles))
             if ps in (BODY_STYLES | ABS_ZH_STYLES | FIG_CAP_STYLES):
                 for m in SUBPANEL_DUNHAO_RE.finditer(t):
                     punct_issues.append(f"多小图图序误用顿号(应为中文逗号): {m.group(0)}")
@@ -1035,7 +1156,11 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                     if sp in rt and not is_it:
                         bio_italic_issues.append(f"拉丁物种名未斜体: {sp} in {rt[:30]!r}")
 
-        results.append(CheckResult("Err-4-5-6", "常见错误-4/5/6(化学式下标/µL/数字单位空格)", "PASS" if not unit_issues else "FAIL", "单位、微升符号及化学式规范" if not unit_issues else f"发现 {len(unit_issues)} 处单位或下标问题", unit_issues[:12]))
+        unit_status = 'FAIL' if unit_issues else 'WARN' if formula_review else 'PASS'
+        unit_summary = (f'检出 {len(unit_issues)} 处单位问题，{len(formula_review)} 处化学式待复核'
+                        if unit_issues or formula_review else '单位、微升符号及化学式规范')
+        results.append(CheckResult("Err-4-5-6", "常见错误-4/5/6(化学式下标/µL/数字单位空格)",
+                                   unit_status, unit_summary, (unit_issues + formula_review)[:12]))
 
         ch2_start = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.match(r"^第二章\b", _p_text(el).strip())), None)
         ch3_start = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.match(r"^第三章\b", _p_text(el).strip())), None)

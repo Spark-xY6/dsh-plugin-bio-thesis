@@ -5,7 +5,7 @@ whenToUse: Use when a student creates a Word thesis from an institutional templa
 disable-model-invocation: false
 user-invocable: true
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   license: MIT
 ---
 
@@ -50,6 +50,14 @@ Review [document-modes-and-presets.md](references/document-modes-and-presets.md)
 Prefer the institution's actual Word template when the user supplies one. Pass `init --template <school.docx|school.dotx> --output <candidate.docx>`. Properties, sections, styles, fields, media and content come from that template. Fill explicit markers in ordinary Word text, such as `{{title_zh}}` with `--title-zh` or `{{author}}` with `--author`. Template mode masks identity markers in blind mode. Check actual identity-bearing text, the file properties, images, signatures and embedded files before sending.
 
 Pass `audit --template <school.docx|school.dotx>` to use that template as the layout reference. Supply the applicable citation style and use `audit.template_checks` in the optional JSON profile to opt into other school-specific checks. Treat `INFO` coverage gaps and `WARN` findings as review items. Generic settings below apply to the bundled master; inspect the supplied template and local requirements for other institutions.
+
+If the school requires a named paragraph style to control font size, family or colour, put the corresponding rule in a JSON profile and pass it with `audit --profile-config <rules.json>`. Read the exact paragraph `w:styleId` from the template's `word/styles.xml`. Replace the example ID and select only properties covered by the school's rule.
+
+```json
+{"audit":{"direct_formatting":[{"id":"body-size","paragraph_style":"SchoolBody","forbid":["font_size"]}]}}
+```
+
+`font_size` covers regular and complex-script size, `font_face` covers run font assignments, and `color` covers text colour. The check flags these explicit assignments even when they currently equal the inherited value. Named character styles, inline bold and italics are allowed. Each rule covers its paragraph style and its descendants, including the implicit default style where applicable. A finding such as `DirectFormat-body-size` gives the one-based paragraph position in main-document order, including table cells. This check inspects current text runs and skips deleted text, text boxes, headers, footers and notes. An unrecognised rule or style ID exits with a configuration error. A valid style with no matching paragraphs produces a coverage warning.
 
 Scaffold a clean `.docx` (optionally embedding a custom university PNG/JPEG emblem via `--logo`) using `scripts/bio_thesis.py`:
 
