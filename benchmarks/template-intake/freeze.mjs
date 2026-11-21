@@ -1,0 +1,10 @@
+import {createHash} from 'node:crypto';
+import {copyFileSync,readFileSync,writeFileSync,constants} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const here=path.dirname(fileURLToPath(import.meta.url));
+copyFileSync(path.join(here,'TASK.md'),path.join(here,'inputs/TASK.md'),constants.COPYFILE_EXCL);
+const files=['build.py','judge.py','controls.py','run.mjs','freeze.mjs','PROTOCOL.md','PROMPT.txt','inputs/TASK.md','inputs/intake.json','inputs/alpine.docx','inputs/bay.dotx','inputs/ridge.dotx'];
+const records=Object.fromEntries(files.map(n=>[n,createHash('sha256').update(readFileSync(path.join(here,n))).digest('hex')]));
+writeFileSync(path.join(here,'freeze.json'),JSON.stringify(records,null,2)+'\n',{flag:'wx'});
+console.log('Frozen '+files.length+' files. Manifest SHA256 '+createHash('sha256').update(readFileSync(path.join(here,'freeze.json'))).digest('hex'));

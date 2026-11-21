@@ -1,0 +1,784 @@
+{
+  "trials": [
+    {
+      "pair": 1,
+      "arm": "bare",
+      "inputsIntact": true,
+      "elapsedSeconds": 101.102,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 6,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 5,
+        "file_change": 1
+      },
+      "usage": {
+        "input_tokens": 138300,
+        "cached_input_tokens": 105216,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2682,
+        "reasoning_output_tokens": 12
+      },
+      "outputSHA256": {
+        "generated.docx": "5c504b8cb8c8c9d66e653b3c9bd285e8c320ef3ab62a1eeeef7b44484c03013f",
+        "result.json": "3c5c0cec0fe32041517120489a374274381937df77eee52e5dc7fce055b8b2a0"
+      },
+      "successfulShellCommands": 5,
+      "installedSkillFilesVerified": 0,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    {
+      "pair": 1,
+      "arm": "skill",
+      "inputsIntact": true,
+      "elapsedSeconds": 90.896,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 6,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 6
+      },
+      "usage": {
+        "input_tokens": 185026,
+        "cached_input_tokens": 148352,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2316,
+        "reasoning_output_tokens": 33
+      },
+      "outputSHA256": {
+        "generated.docx": "6494dd1bff1b54f0f05c8373244d7104d41823ddf9180319ab4b8631af6a71c6",
+        "result.json": "3c5c0cec0fe32041517120489a374274381937df77eee52e5dc7fce055b8b2a0"
+      },
+      "successfulShellCommands": 6,
+      "installedSkillFilesVerified": 13,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    {
+      "pair": 2,
+      "arm": "bare",
+      "inputsIntact": true,
+      "elapsedSeconds": 91.032,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 6,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 5,
+        "file_change": 1
+      },
+      "usage": {
+        "input_tokens": 127448,
+        "cached_input_tokens": 81152,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2607,
+        "reasoning_output_tokens": 20
+      },
+      "outputSHA256": {
+        "generated.docx": "8dc7e0a34a375b8bac72bf8f4c3b24ea9869c15449d3b451d3d201194d5e7780",
+        "result.json": "3c5c0cec0fe32041517120489a374274381937df77eee52e5dc7fce055b8b2a0"
+      },
+      "successfulShellCommands": 5,
+      "installedSkillFilesVerified": 0,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    {
+      "pair": 2,
+      "arm": "skill",
+      "inputsIntact": true,
+      "elapsedSeconds": 84.447,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 5,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 4,
+        "file_change": 1
+      },
+      "usage": {
+        "input_tokens": 109816,
+        "cached_input_tokens": 83712,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2256,
+        "reasoning_output_tokens": 29
+      },
+      "outputSHA256": {
+        "generated.docx": "19f57d18a5288512b98be7baa80a46a946d38deeee763d10c339792c3739ec13",
+        "result.json": "6946b6561178e78736e0478578df5be4b510262ca644093f840d6c7d98be4ebd"
+      },
+      "successfulShellCommands": 4,
+      "installedSkillFilesVerified": 13,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "bare",
+      "inputsIntact": true,
+      "elapsedSeconds": 87.83,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 5,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 5
+      },
+      "usage": {
+        "input_tokens": 121611,
+        "cached_input_tokens": 89728,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2388,
+        "reasoning_output_tokens": 36
+      },
+      "outputSHA256": {
+        "generated.docx": "00f935dac98c3f2164a93ea34ec62624972c5013ea1bd1edefa7f434ea0b83df",
+        "result.json": "6946b6561178e78736e0478578df5be4b510262ca644093f840d6c7d98be4ebd"
+      },
+      "successfulShellCommands": 5,
+      "installedSkillFilesVerified": 0,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "skill",
+      "inputsIntact": true,
+      "elapsedSeconds": 92.772,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 6,
+      "itemTypes": {
+        "agent_message": 3,
+        "command_execution": 5,
+        "file_change": 1
+      },
+      "usage": {
+        "input_tokens": 153689,
+        "cached_input_tokens": 112384,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2525,
+        "reasoning_output_tokens": 37
+      },
+      "outputSHA256": {
+        "generated.docx": "5e6e1c66db8fdc0ad408c0bc2133dc5fb47469c288ce26eab3ba931e0499af21",
+        "result.json": "6946b6561178e78736e0478578df5be4b510262ca644093f840d6c7d98be4ebd"
+      },
+      "successfulShellCommands": 5,
+      "installedSkillFilesVerified": 13,
+      "audit": {
+        "TP": 14,
+        "FP": 0,
+        "FN": 0,
+        "TN": 42,
+        "micro_F1": 1.0,
+        "errors": 0,
+        "accuracy": 1.0,
+        "by_label": {
+          "PAGE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "NUMBER": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "STYLE": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "DIRECT": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "MEDIA": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "IDENTITY": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          },
+          "TOC": {
+            "TP": 2,
+            "FP": 0,
+            "FN": 0,
+            "TN": 6,
+            "micro_F1": 1.0,
+            "errors": 0,
+            "accuracy": 1.0
+          }
+        },
+        "missed": [],
+        "spurious": [],
+        "invalid_rows": [],
+        "extra_rows": [],
+        "audit_complete": true
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    }
+  ],
+  "decision": {
+    "bothArmsComplete": true,
+    "pairedSkillMinusBare": {
+      "micro_F1": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "FN": [
+        0,
+        0,
+        0
+      ],
+      "FP": [
+        0,
+        0,
+        0
+      ],
+      "errors": [
+        0,
+        0,
+        0
+      ]
+    },
+    "generationDifferenceOfMedians": 0,
+    "reductionInMedianSkillVsBare": {
+      "elapsedSeconds": 0.0014939801388522689,
+      "toolCalls": 0.0
+    },
+    "qualityRuleMet": false,
+    "efficiencyRuleMet": false
+  }
+}

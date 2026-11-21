@@ -1,0 +1,34 @@
+{
+  "commands": [
+    {
+      "command": "'Get-Content inputs/TASK.md; Get-ChildItem -Force; if (Test-Path .agents/skills) { Get-ChildItem .agents/skills -Recurse -Filter SKILL.md | Select-Object -ExpandProperty FullName }'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content .agents/skills/bio-thesis-formatter/SKILL.md; Get-Content inputs/intake.json; Get-ChildItem inputs -Recurse | Select-Object FullName,Length; Get-ChildItem .agents/skills/bio-thesis-formatter -Recurse | Select-Object FullName'",
+      "exitCode": 0
+    },
+    {
+      "command": "\"Get-Content .agents/skills/bio-thesis-formatter/references/document-modes-and-presets.md; Get-Content .agents/skills/bio-thesis-formatter/scripts/init_thesis_docx.py | Select-String -Pattern 'template|replace|blind|major|author' -Context 2,3; python -B .agents/skills/bio-thesis-formatter/scripts/bio_thesis.py init --help\"",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nfrom zipfile import ZipFile\nfrom pathlib import Path\nfor p in Path('inputs').glob('*'):\n if p.suffix in ('.docx','.dotx'):\n  print('\\\\nFILE',p)\n  with ZipFile(p) as z:\n   for n in z.namelist():\n    if n.endswith('.xml') and (n.startswith('word/') or n.startswith('docProps/')):\n     print(n, z.read(n).decode())\n'@ | python -B -\"",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content .agents/skills/bio-thesis-formatter/scripts/docx_package.py'",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nimport json, subprocess, sys, hashlib\nfrom pathlib import Path\nrows=json.loads(Path('inputs/intake.json').read_text(encoding='utf-8'))\nbefore={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('inputs').iterdir() if p.is_file()}\nfor row in rows:\n subprocess.run([sys.executable,'-B','.agents/skills/bio-thesis-formatter/scripts/bio_thesis.py','init','--template',str(Path('inputs')/row['template']),'--output',str(Path('output')/row['output']),'--review-stage','blind','--title-en',row['title_en'],'--major',row['major'],'--author',row['author'],'--student-id',row['student_id']],check=True)\nassert before=={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('inputs').iterdir() if p.is_file()}\nprint('Input hashes unchanged.')\n'@ | python -B -\"",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nimport json,re\nfrom pathlib import Path\nfrom zipfile import ZipFile\nfrom xml.etree import ElementTree as E\nW='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'\nrows=json.loads(Path('inputs/intake.json').read_text())\nsecrets=[r[k] for r in rows for k in ('author','student_id')]\ndef tree(el):\n return (el.tag,dict(el.attrib),el.text or '',tuple(tree(c) for c in el))\nfor row in rows:\n with ZipFile(Path('inputs')/row['template']) as a, ZipFile(Path('output')/row['output']) as b:\n  assert b.testzip() is None\n  assert a.namelist()==b.namelist()\n  changed=[]\n  for name in a.namelist():\n   original,result=a.read(name),b.read(name)\n   assert all(s.encode() not in result for s in secrets),name\n   if name.endswith(('.xml','.rels')):\n    root=E.fromstring(result)\n    text=''.join(root.itertext())\n    assert all(s not in text for s in secrets)\n    assert '{{' not in text,name\n   if original==result: continue\n   changed.append(name)\n   if name=='[Content_Types].xml':\n    assert row['template'].endswith('.dotx')\n    original=original.replace(b'wordprocessingml.template.main+xml',b'wordprocessingml.document.main+xml')\n    assert tree(E.fromstring(original))==tree(E.fromstring(result))\n   else:\n    assert name in ('word/document.xml','word/header1.xml')\n    orig,final=E.fromstring(original),E.fromstring(result)\n    # Collapse only text runs in each paragraph for comparison, preserving all other nodes/attributes.\n    values={k:row[k] for k in ('title_en','major')}\n    values.update(author='【匿名评审隐去】',student_id='【匿名评审隐去】')\n    for p,q in zip(orig.iter(W+'p'),final.iter(W+'p')):\n     ot=list(p.iter(W+'t')); ft=list(q.iter(W+'t'))\n     assert len(ot)==len(ft)\n     expected=''.join(t.text or '' for t in ot)\n     for k,v in values.items(): expected=expected.replace('{{'+k+'}}',v)\n     assert expected==''.join(t.text or '' for t in ft)\n     for t in ot+ft:t.text=''\n    assert tree(orig)==tree(final),name\n  doc=E.fromstring(b.read('word/document.xml'))\n  paragraphs=[''.join(p.itertext()) for p in doc.iter(W+'p')]\n  assert 'Candidate: 【匿名评审隐去】' in paragraphs\n  assert 'Registration: 【匿名评审隐去】' in paragraphs\n  assert 'Programme: '+row['major'] in paragraphs\n  assert 'Working title: '+row['title_en'] in paragraphs\n  print(row['output']+': PASS; title/programme complete; identities absent; labels and anonymous slots retained; all other XML structure and package assets preserved. Changed parts: '+', '.join(changed))\n'@ | python -B -\"",
+      "exitCode": 0
+    }
+  ],
+  "authoredFiles": {},
+  "changed": []
+}

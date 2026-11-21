@@ -1,0 +1,146 @@
+[
+  {
+    "run": "pair1-bare",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-bare",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-bare",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-skill",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-skill",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-skill",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-bare",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-bare",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-bare",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-skill",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-skill",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-skill",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-bare",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-bare",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-bare",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-skill",
+    "file": "alpine.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-skill",
+    "file": "bay.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-skill",
+    "file": "ridge.docx",
+    "sections": 2,
+    "pages": 2,
+    "toc": 1,
+    "illustrations": 1
+  }
+]

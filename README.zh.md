@@ -1,6 +1,6 @@
 # 用学校的 Word 模板写论文、查格式
 
-[English](README.md) · [已有工具调研](docs/alternatives.md) · [实测效果](docs/evaluation.md) · [版本下载](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases)
+[English](README.md) · [裸跑和开源工具实测](docs/comparison.md) · [已有工具调研](docs/alternatives.md) · [Word 样例](docs/evaluation.md) · [版本下载](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases)
 
 学院发来一份 Word 模板，封面、声明、页眉和页码已经排好。这个 DeepSeek Harness（DSH）插件能从模板生成可编辑底稿。经过几轮修改，还能将现稿与原模板对照，指出哪些设置变了。硕士、博士及过程报告均可使用。生命科学术语和引文筛查按需启用。
 
@@ -13,10 +13,10 @@
 使用备有 pnpm 和 Python 3.10+ 的 DSH 环境。宿主实测使用 DSH 0.2.2-rc.5 和 Node 24。安装到你正在使用的 profile，然后重启该 profile。
 
 ```sh
-dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.2.0"
+dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.3.0"
 ```
 
-也可以从 [GitHub Release](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/tag/v0.2.0) 下载预构建包，在下载目录运行 `dsh plugin --profile web add ./dsh-plugin-bio-thesis-0.2.0.tgz`。在 DSH 工作目录中放入文件后，可以这样说：
+也可以从 [GitHub Release](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/tag/v0.3.0) 下载预构建包，在下载目录运行 `dsh plugin --profile web add ./dsh-plugin-bio-thesis-0.3.0.tgz`。在 DSH 工作目录中放入文件后，可以这样说：
 
 > 使用 bio-thesis-formatter，以“学院模板.dotx”生成“论文工作稿.docx”，题目填为“示例研究”。保留学校封面和页眉。另把“修订稿.docx”与这份模板比较，写出“格式检查.md”，列出我还需要在 Word 里看的地方。
 
@@ -37,6 +37,10 @@ python -B skills/bio-thesis-formatter/scripts/bio_thesis.py export-checklist --o
 - **判读报告。** `FAIL` 表示已启用的规则检出错误，`WARN` 表示需判断，`INFO` 表示提示或未启用。默认有 FAIL 返回 1，只有警告、提示或通过项返回 0，输入或运行错误返回 2。加 `--fail-on-warn` 可让警告也阻止放行。报告单列待人工复核任务。65 项自查表同时包含自动和人工项目，最终目录、分页、跨页表格仍要在 Word 或最终 PDF 中确认。
 
 ## 实测效果
+
+**三所学校各按自己的模板起稿。** 同一模型做三组配对，裸跑每组现场编写 37 行、至少 33 行、36 行底层 Word 转换代码；加载已发布技能后，三组均直接调用生成命令，新增转换代码均为 0 行。两组共交付 18 份成品，全部通过逐项检查并在 Microsoft Word 中打开。用时中位数为裸跑 65.3 秒、加技能 66.6 秒。[预登记与实测结果](docs/intake.md) · [下载两项实验的实际成品并复评](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/download/v0.3.0/thesis-benchmark-evidence-v1.zip)
+
+同一模型做三组配对，裸跑和加载 v0.2.0 技能都查全了 14 个缺陷，生成底稿也都通过 12 项检查。单独运行插件的审计命令时，旧版查出 12 个，漏掉两处正文局部字号覆盖。v0.3.0 增加了按学校段落样式检查局部覆盖的配置。开源工具 `format-thesis-docx` 在双方共同覆盖的纸张、样式要求上也全部查对，而且能重排旧稿。`docxtpl` 在同一模板上也取得生成 12/12。[逐项结果、合成样例和评分方法](docs/comparison.md)
 
 一份横向 Letter 学校模板生成盲审稿后，自定义页眉和标题样式保留。将上边距由 1800 改为 720 twip（1.25 英寸改为 0.5 英寸），再把示例作者姓名写回，审计准确指出了两处变化。另有真实 DSH 安装测试和 Microsoft Word 打开后的页面检查。[评测记录、复现步骤与限制](docs/evaluation.md) · [持续集成](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)
 

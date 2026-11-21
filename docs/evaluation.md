@@ -47,8 +47,8 @@ $scratch = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath
 $env:DSH_RUNTIME = Join-Path $scratch.FullName 'host'
 $env:PYTHON = (Get-Command python -CommandType Application | Select-Object -First 1).Source
 npm install --prefix $env:DSH_RUNTIME --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.5
-npm pack --ignore-scripts --pack-destination $scratch.FullName
-$env:DSH_PLUGIN_SPEC = Join-Path $scratch.FullName 'dsh-plugin-bio-thesis-0.2.0.tgz'
+$packed = npm pack --silent --ignore-scripts --pack-destination $scratch.FullName
+$env:DSH_PLUGIN_SPEC = Join-Path $scratch.FullName $packed
 node tests/dsh-host.mjs
 ```
 

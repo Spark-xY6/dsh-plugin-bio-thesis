@@ -1,0 +1,21 @@
+{
+  "blindReviewSHA256": "79a370d3046454680419a441bef7c8c722ef6910a2a3d94cf0500625df6f9c55",
+  "protocolFreezeSHA256": "75eaa67ddc082ca2b9b5d6a914a0e7b4dad24bc63cfbf7a8481ea1e50e7552fa",
+  "runtimeRelease": "0.2.0",
+  "scope": "Source lines newly authored by the model for low-level DOCX, XML and archive transformation. CLI invocation, argument preparation and verification-only source are excluded. Each paper was generated using the same implementation within its trial.",
+  "review": "Before unmasking, an independent automated reviewer received six randomized code inventories with trial labels, elapsed time, token use and output quality withheld. The names of tools remained in sources and could suggest the condition. A separate operator transcribed the reviewer decisions; the reviewer verified the final SHA-256 and all six line ranges.",
+  "pairs": [
+    {"pair": 1, "bare": {"inventory": "sample-9f3f3561", "lines": 37, "bound": "exact"}, "skill": {"inventory": "sample-f42ab28c", "lines": 0, "bound": "exact"}, "minimumFewer": 37},
+    {"pair": 2, "bare": {"inventory": "sample-b9c822f5", "lines": 33, "bound": "lower"}, "skill": {"inventory": "sample-ad8cbfd5", "lines": 0, "bound": "exact"}, "minimumFewer": 33},
+    {"pair": 3, "bare": {"inventory": "sample-46307d38", "lines": 36, "bound": "exact"}, "skill": {"inventory": "sample-6e29d221", "lines": 0, "bound": "exact"}, "minimumFewer": 36}
+  ],
+  "bareMedianPossibleInterval": [36, 37],
+  "skillMedian": 0,
+  "medianFractionalReduction": 1.0,
+  "pairsMeetingAtLeastEightFewerLines": 3,
+  "allSixArmsDeliveredThreeValidFiles": true,
+  "assistedMedianQualityAtLeastBare": true,
+  "implementationEffortThresholdMet": true,
+  "reuseAcrossAllThreeTemplates": {"bare": "3/3", "skill": "3/3"},
+  "limit": "A baseline session ran and revised a local script. The CLI retained only its final contents and file-change metadata; an earlier read-only assertion is visible in a command error. The historical source-line count for that session is at least 33. Using that lower bound leaves both required effort thresholds satisfied."
+}

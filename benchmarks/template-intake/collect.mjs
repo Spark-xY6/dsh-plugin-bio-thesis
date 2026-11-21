@@ -1,0 +1,34 @@
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const here=path.dirname(fileURLToPath(import.meta.url));
+const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const frozen=read(path.join(here,'freeze.json'));
+for(const [f,d] of Object.entries(frozen))if(createHash('sha256').update(fs.readFileSync(path.join(here,f))).digest('hex')!==d)throw Error('Protocol freeze mismatch');
+const names=[1,2,3].flatMap(p=>['bare','skill'].map(a=>'pair'+p+'-'+a));
+const trials=path.join(here,'trials');
+if(fs.readdirSync(trials).sort().join('|')!==names.join('|')||!names.every(n=>fs.existsSync(path.join(trials,n,'completed.json'))))throw Error('Incomplete pairs');
+const interp=process.env.THESIS_PYTHON??path.join(process.env.CONDA_PREFIX??'','python.exe');
+const rows=[];
+for(const n of names){
+  const dir=path.join(trials,n),s=read(path.join(dir,'completed.json')),original=read(path.join(dir,'started.json'));
+  if(n!=='pair'+s.pair+'-'+s.arm||s.arm!==original.arm||s.pair!==original.pair)throw Error('Wrong metadata');
+  const z=spawnSync(interp,['-B','-X','utf8',path.join(here,'judge.py'),path.join(here,'inputs'),path.join(dir,'output')],{encoding:'utf8',windowsHide:true});
+  if(z.status!==0)throw Error('Judge failed '+z.stderr);
+  const score=JSON.parse(z.stdout);
+  fs.writeFileSync(path.join(dir,'score.json'),JSON.stringify(score,null,2)+'\n');
+  const {pair,arm,elapsedSeconds,timedOut,exitCode,toolCalls,usage,inputsIntact}=s;
+  rows.push({pair,arm,elapsedSeconds,timedOut,exitCode,toolCalls,usage,inputsIntact,quality:score});
+}
+const median=a=>[...a].sort((x,y)=>x-y)[1];
+const b=rows.filter(x=>x.arm==='bare'),s=rows.filter(x=>x.arm==='skill');
+const complete=rows.every(r=>r.exitCode===0&&!r.timedOut&&r.inputsIntact&&Object.values(r.quality.documents).every(d=>d.checks.docx));
+const pairedQualityDeltas=s.map((x,i)=>x.quality.score-b[i].quality.score);
+const noQualityLoss=median(s.map(x=>x.quality.score))>=median(b.map(x=>x.quality.score));
+const metric=(get)=>{const bare=median(b.map(get)),skill=median(s.map(get));return {bare,skill,reduction:1-skill/bare}};
+const elapsed=metric(x=>x.elapsedSeconds),tools=metric(x=>x.toolCalls),tokens=metric(x=>x.usage.output_tokens);
+const publicResult={trials:rows,complete,pairedQualityDeltas,noQualityLoss,elapsed,tools,tokens,qualityRuleMet:complete&&noQualityLoss&&pairedQualityDeltas.filter(x=>x>=2).length>=2,efficiencyRuleMet:complete&&noQualityLoss&&Math.max(elapsed.reduction,tools.reduction)>=.3,tokenRuleMet:complete&&noQualityLoss&&tokens.reduction>=.25};
+fs.writeFileSync(path.join(here,'model-outcomes.json'),JSON.stringify(publicResult,null,2)+'\n');
+console.log(JSON.stringify({complete,pairedQualityDeltas,elapsed,tools,tokens}));

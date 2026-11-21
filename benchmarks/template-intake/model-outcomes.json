@@ -1,0 +1,323 @@
+{
+  "trials": [
+    {
+      "pair": 1,
+      "arm": "bare",
+      "elapsedSeconds": 62.742,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 4,
+      "usage": {
+        "input_tokens": 96778,
+        "cached_input_tokens": 72448,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1587,
+        "reasoning_output_tokens": 30
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "f3b224a3b4b32c7d289b7d1a0778df3dc574a714d81d9238182d8bb5030953fd"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "6c8239661ea947cea551ef21232119b899c96e831fb32193b2b4017e9c71211c"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "7121f41faef58e7af47e6bebbef05ac47131a15a6453b11a0645afca9308a555"
+          }
+        }
+      }
+    },
+    {
+      "pair": 1,
+      "arm": "skill",
+      "elapsedSeconds": 66.584,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 5,
+      "usage": {
+        "input_tokens": 158401,
+        "cached_input_tokens": 101120,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1524,
+        "reasoning_output_tokens": 48
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "f6685178e26f14342e25be60681b2ec58d8f12ebc45e5e8420db3fd71e93f0cf"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "9cd0399ca2943d926dfd25855fb2ecaa30a0d1f3c3c7ffa25aeedb246808dce6"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "976907487bfc0efce4f5ede5bf4e56345f7349de087aae5bff7f5d6a6430be63"
+          }
+        }
+      }
+    },
+    {
+      "pair": 2,
+      "arm": "bare",
+      "elapsedSeconds": 77.564,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 7,
+      "usage": {
+        "input_tokens": 119277,
+        "cached_input_tokens": 81792,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1795,
+        "reasoning_output_tokens": 58
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "f3b224a3b4b32c7d289b7d1a0778df3dc574a714d81d9238182d8bb5030953fd"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "6c8239661ea947cea551ef21232119b899c96e831fb32193b2b4017e9c71211c"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "7121f41faef58e7af47e6bebbef05ac47131a15a6453b11a0645afca9308a555"
+          }
+        }
+      }
+    },
+    {
+      "pair": 2,
+      "arm": "skill",
+      "elapsedSeconds": 75.469,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 7,
+      "usage": {
+        "input_tokens": 178986,
+        "cached_input_tokens": 156160,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1658,
+        "reasoning_output_tokens": 33
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "a0ac1ebb0bc8ba9b061bdbc7a006ccc1162e6df26e4e871c6c2f84a86743136f"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "e7d3c15c33399dfdc2ff43447a524bcafa3abf5ea15303d8985ad304216f386f"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "a2ac8a36effbcddbcbd9994661040fa456586dd20400e24d13fc03628e4c053d"
+          }
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "bare",
+      "elapsedSeconds": 65.318,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 5,
+      "usage": {
+        "input_tokens": 95810,
+        "cached_input_tokens": 47872,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1622,
+        "reasoning_output_tokens": 31
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "f3b224a3b4b32c7d289b7d1a0778df3dc574a714d81d9238182d8bb5030953fd"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "6c8239661ea947cea551ef21232119b899c96e831fb32193b2b4017e9c71211c"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "7121f41faef58e7af47e6bebbef05ac47131a15a6453b11a0645afca9308a555"
+          }
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "skill",
+      "elapsedSeconds": 65.634,
+      "timedOut": false,
+      "exitCode": 0,
+      "toolCalls": 5,
+      "usage": {
+        "input_tokens": 135354,
+        "cached_input_tokens": 108288,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1533,
+        "reasoning_output_tokens": 32
+      },
+      "inputsIntact": true,
+      "quality": {
+        "score": 12,
+        "total": 12,
+        "documents": {
+          "alpine.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "8d0f11956ad9040c1bff53ddfdaa06c9ffb11cfb1b75959ca4e346e223b7a6b3"
+          },
+          "bay.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "5a14b1f23591dc1ea476bdc93cbcb4cb3bda92a47571c9a1b03a26a0562e1a96"
+          },
+          "ridge.docx": {
+            "checks": {
+              "docx": true,
+              "filled": true,
+              "private": true,
+              "preserved": true
+            },
+            "sha256": "e89eb0cc6d06959d0315be3f3c7f14de2d13266592a0722f5b24c220391e383e"
+          }
+        }
+      }
+    }
+  ],
+  "complete": true,
+  "pairedQualityDeltas": [
+    0,
+    0,
+    0
+  ],
+  "noQualityLoss": true,
+  "elapsed": {
+    "bare": 65.318,
+    "skill": 66.584,
+    "reduction": -0.019382099880584258
+  },
+  "tools": {
+    "bare": 5,
+    "skill": 5,
+    "reduction": 0
+  },
+  "tokens": {
+    "bare": 1622,
+    "skill": 1533,
+    "reduction": 0.05487053020961774
+  },
+  "qualityRuleMet": false,
+  "efficiencyRuleMet": false,
+  "tokenRuleMet": false
+}

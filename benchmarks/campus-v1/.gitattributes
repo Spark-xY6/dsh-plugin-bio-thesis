@@ -1,0 +1,5 @@
+# Frozen input manifests and scripts are hashed as exact bytes on every OS.
+*.mjs text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+inputs/TASK.md text eol=lf

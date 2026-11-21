@@ -1,0 +1,54 @@
+{
+  "method": "One-based physical lines, including PowerShell here-string opener on inline line 1. Trim whitespace, count each identical transformation line once within session; count XML match/edit helpers, DOCX content-type conversion and ZIP reads/writes feeding the output. Exclude imports, shell launch, per-row path/data/argument setup, input enumeration, and operations performed solely to verify output. Scores and arm mapping hidden during adjudication. Source commands may reveal the tool used.",
+  "reviews": {
+    "sample-46307d38": {
+      "newTransformationLines": 36,
+      "countKind": "exact",
+      "reusedAcrossThree": true,
+      "source": "prepare_documents.py",
+      "lines": ["13", "15-38", "45-55"],
+      "reuseEvidence": "source line 40 loops all rows, source 45-55 applies the same implementation; command 4 exits 0"
+    },
+    "sample-6e29d221": {
+      "newTransformationLines": 0,
+      "countKind": "exact",
+      "reusedAcrossThree": true,
+      "source": "command 5",
+      "lines": [],
+      "reuseEvidence": "9-10 iterate all rows and invoke the same existing init CLI; later in-memory XML simulation is exclusively QA"
+    },
+    "sample-9f3f3561": {
+      "newTransformationLines": 37,
+      "countKind": "exact",
+      "reusedAcrossThree": true,
+      "source": "command 4, full here-string",
+      "lines": ["9-10", "12-38", "44-51"],
+      "reuseEvidence": "line 40 loops all rows; 44-51 use the same implementation; command exits 0"
+    },
+    "sample-ad8cbfd5": {
+      "newTransformationLines": 0,
+      "countKind": "exact",
+      "reusedAcrossThree": true,
+      "source": "command 6",
+      "lines": [],
+      "reuseEvidence": "6-7 iterate all rows invoking the same supplied init; command 7 is QA"
+    },
+    "sample-b9c822f5": {
+      "newTransformationLines": 33,
+      "countKind": "lower_bound",
+      "reusedAcrossThree": true,
+      "source": "final prepare_documents.py",
+      "lines": ["16-34", "36-38", "44-53", "55"],
+      "duplicates": ["35=21", "54=46"],
+      "reuseEvidence": "final source 40 loops all rows, 44-55 uses same implementation; command 5 exits 0. Two file-change events; command 4 exits 1; first-version diff unavailable. At least 33 distinct lines ever authored."
+    },
+    "sample-f42ab28c": {
+      "newTransformationLines": 0,
+      "countKind": "exact",
+      "reusedAcrossThree": true,
+      "source": "command 5",
+      "lines": [],
+      "reuseEvidence": "8-10 iterate all rows invoking the same supplied init; subsequent checks do not write a DOCX"
+    }
+  }
+}

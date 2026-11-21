@@ -1,0 +1,319 @@
+{
+  "corpus": "campus-v1.0.0",
+  "interpretation": "Null audit or generation means outside this comparison. Unsupported audit requirements count as unreported defects in the full-task confusion matrix.",
+  "tools": {
+    "plugin-v0.2.0": {
+      "audit": {
+        "cases": {
+          "A01": [
+            "MEDIA",
+            "STYLE"
+          ],
+          "A02": [],
+          "A03": [
+            "IDENTITY",
+            "PAGE"
+          ],
+          "A04": [
+            "NUMBER",
+            "TOC"
+          ],
+          "A05": [
+            "IDENTITY"
+          ],
+          "A06": [
+            "MEDIA",
+            "NUMBER",
+            "PAGE"
+          ],
+          "A07": [],
+          "A08": [
+            "STYLE",
+            "TOC"
+          ]
+        },
+        "confusion": {
+          "TN": 42,
+          "FP": 0,
+          "TP": 12,
+          "FN": 2
+        },
+        "micro_F1": 0.9230769230769231
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    "format-thesis-docx": {
+      "audit": {
+        "cases": {
+          "A01": [
+            "STYLE"
+          ],
+          "A02": [],
+          "A03": [
+            "PAGE"
+          ],
+          "A04": [],
+          "A05": [],
+          "A06": [
+            "PAGE"
+          ],
+          "A07": [],
+          "A08": [
+            "STYLE"
+          ]
+        },
+        "confusion": {
+          "TN": 42,
+          "FP": 0,
+          "TP": 4,
+          "FN": 10
+        },
+        "micro_F1": 0.4444444444444444
+      },
+      "generation": null
+    },
+    "DocFormatTool": {
+      "audit": {
+        "cases": {
+          "A01": [],
+          "A02": [],
+          "A03": [],
+          "A04": [],
+          "A05": [],
+          "A06": [
+            "PAGE"
+          ],
+          "A07": [],
+          "A08": []
+        },
+        "confusion": {
+          "TN": 42,
+          "FP": 0,
+          "TP": 1,
+          "FN": 13
+        },
+        "micro_F1": 0.13333333333333333
+      },
+      "generation": null
+    },
+    "docxtpl-0.20.2": {
+      "audit": null,
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      }
+    },
+    "pandoc-3.8": {
+      "audit": null,
+      "generation": {
+        "status": "scored",
+        "score": 5,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": false,
+          "page_geometry": false,
+          "section_numbering": false,
+          "page_fields": false,
+          "toc_field": false,
+          "body_style": true,
+          "embedded_media": false,
+          "header_text": false
+        }
+      }
+    },
+    "plugin-v0.3.0-post-hoc": {
+      "interpretation": "Post-hoc regression on reused inputs, including the two previously missed DIRECT issues. This version was not used for the paired solver trials.",
+      "profile": {
+        "audit": {
+          "direct_formatting": [
+            {
+              "id": "body-size",
+              "paragraph_style": "BodyCampus",
+              "forbid": [
+                "font_size"
+              ]
+            }
+          ]
+        }
+      },
+      "audit": {
+        "cases": {
+          "A01": [
+            "MEDIA",
+            "STYLE"
+          ],
+          "A02": [],
+          "A03": [
+            "PAGE",
+            "IDENTITY"
+          ],
+          "A04": [
+            "NUMBER",
+            "TOC"
+          ],
+          "A05": [
+            "DIRECT",
+            "IDENTITY"
+          ],
+          "A06": [
+            "MEDIA",
+            "PAGE",
+            "NUMBER"
+          ],
+          "A07": [],
+          "A08": [
+            "DIRECT",
+            "STYLE",
+            "TOC"
+          ]
+        },
+        "confusion": {
+          "FN": 0,
+          "TP": 14,
+          "TN": 42,
+          "FP": 0
+        },
+        "micro_F1": 1.0
+      },
+      "generation": {
+        "status": "scored",
+        "score": 12,
+        "total": 12,
+        "items": {
+          "valid_docx": true,
+          "title_replaced": true,
+          "author_masked": true,
+          "no_private_identity": true,
+          "original_text": true,
+          "page_geometry": true,
+          "section_numbering": true,
+          "page_fields": true,
+          "toc_field": true,
+          "body_style": true,
+          "embedded_media": true,
+          "header_text": true
+        }
+      },
+      "direct_locations": [
+        "A05: paragraph 7",
+        "A08: paragraph 7"
+      ]
+    }
+  },
+  "mit_reverse_test": {
+    "requirements": 35,
+    "before": {
+      "fail": 26,
+      "manual": 4,
+      "pass": 5
+    },
+    "applied_changes": 15,
+    "after": {
+      "fail": 11,
+      "manual": 4,
+      "pass": 20
+    }
+  },
+  "tsinghua": {
+    "original_completed": 0,
+    "original_attempted": 8,
+    "original_error": "Missing optional word/settings.xml",
+    "adapted_completed": 8,
+    "adapted_attempted": 8,
+    "adapted_counts_under_its_own_policy": [
+      {
+        "case": "A01",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A02",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A03",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A04",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A05",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A06",
+        "pass": 7,
+        "fail": 34,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A07",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      },
+      {
+        "case": "A08",
+        "pass": 8,
+        "fail": 33,
+        "warn": 7,
+        "remaining_manual": 8
+      }
+    ]
+  }
+}

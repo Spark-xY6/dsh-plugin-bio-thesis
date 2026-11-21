@@ -1,0 +1,26 @@
+{
+  "commands": [
+    {
+      "command": "'Get-Content -LiteralPath inputs/TASK.md; Get-ChildItem -Force; if (Test-Path .agents/skills) { Get-ChildItem -Recurse -File .agents/skills | Select-Object -ExpandProperty FullName }'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-ChildItem -Recurse -File inputs; Get-Content -LiteralPath inputs/intake.json; Get-Command python,conda -ErrorAction SilentlyContinue | Select-Object Name,Source'",
+      "exitCode": 0
+    },
+    {
+      "command": "\"python -c \\\"import zipfile,pathlib; from xml.etree import ElementTree as E; [(print('\\\\nFILE',p.name),[(print(n,z.read(n).decode('utf-8'))) for n in z.namelist() if n.endswith('.xml')]) for p in pathlib.Path('inputs').glob('*.do*') for z in [zipfile.ZipFile(p)]]\\\"\"",
+      "exitCode": 0
+    },
+    {
+      "command": "'python prepare_documents.py'",
+      "exitCode": 0
+    }
+  ],
+  "authoredFiles": {
+    "prepare_documents.py": "from pathlib import Path\nimport hashlib\nimport json\nimport re\nimport zipfile\nfrom xml.etree import ElementTree as ET\nfrom xml.sax.saxutils import escape, unescape\n\nROOT = Path(__file__).resolve().parent\ninputs = ROOT / 'inputs'\nbefore = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs.iterdir() if p.is_file()}\nrows = json.loads((inputs / 'intake.json').read_text(encoding='utf-8'))\ntext_pattern = re.compile(r'(<w:t\\b[^>]*>)(.*?)(</w:t>)', re.S)\n\ndef fill(xml, values):\n    matches = list(text_pattern.finditer(xml))\n    texts = [unescape(m.group(2)) for m in matches]\n    joined = ''.join(texts)\n    offsets = []\n    for i, text in enumerate(texts):\n        offsets.extend((i, j) for j in range(len(text)))\n    replacements = []\n    for key, value in values.items():\n        for m in re.finditer(re.escape('{{' + key + '}}'), joined):\n            replacements.append((m.start(), m.end(), value))\n    for start, end, value in sorted(replacements, reverse=True):\n        first, left = offsets[start]\n        last, right = offsets[end - 1]\n        if first == last:\n            texts[first] = texts[first][:left] + value + texts[first][right + 1:]\n        else:\n            texts[first] = texts[first][:left] + value\n            for i in range(first + 1, last):\n                texts[i] = ''\n            texts[last] = texts[last][right + 1:]\n    for m, text in reversed(list(zip(matches, texts))):\n        xml = xml[:m.start(2)] + escape(text) + xml[m.end(2):]\n    return xml\n\nfor row in rows:\n    source = inputs / row['template']\n    target = ROOT / 'output' / row['output']\n    values = {key: row[key] for key in ('title_en', 'major')}\n    values.update(author='Anonymous', student_id='Anonymous')\n    with zipfile.ZipFile(source) as original, zipfile.ZipFile(target, 'w') as result:\n        for entry in original.infolist():\n            data = original.read(entry.filename)\n            if entry.filename.endswith('.xml'):\n                xml = data.decode('utf-8')\n                if '<w:t' in xml:\n                    xml = fill(xml, values)\n                if entry.filename == '[Content_Types].xml':\n                    xml = xml.replace('wordprocessingml.template.main+xml', 'wordprocessingml.document.main+xml')\n                data = xml.encode('utf-8')\n            result.writestr(entry, data)\n    with zipfile.ZipFile(source) as original, zipfile.ZipFile(target) as result:\n        assert result.testzip() is None\n        assert original.namelist() == result.namelist()\n        all_text = ''\n        for name in result.namelist():\n            data = result.read(name)\n            for person in rows:\n                assert person['author'].encode() not in data\n                assert person['student_id'].encode() not in data\n            if name.endswith('.xml'):\n                tree = ET.fromstring(data)\n                all_text += ''.join(tree.itertext())\n                if name.startswith('word/'):\n                    expected = fill(original.read(name).decode('utf-8'), values).encode('utf-8')\n                    assert data == expected\n            elif name != '[Content_Types].xml':\n                assert data == original.read(name)\n        assert '{{' not in all_text\n        assert row['title_en'] in all_text and row['major'] in all_text\n        assert 'Candidate: Anonymous' in all_text\n        assert 'Registration: Anonymous' in all_text\n        assert b'wordprocessingml.document.main+xml' in result.read('[Content_Types].xml')\n        for name in original.namelist():\n            if name not in ('word/document.xml', 'word/header1.xml', '[Content_Types].xml'):\n                assert original.read(name) == result.read(name), name\n    print(f'PASS: {target.name}: fields filled; anonymous; school parts preserved; ordinary DOCX')\nassert before == {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs.iterdir() if p.is_file()}\nprint('PASS: all input files unchanged')\n"
+  },
+  "changed": [
+    "<workspace>\\prepare_documents.py"
+  ]
+}

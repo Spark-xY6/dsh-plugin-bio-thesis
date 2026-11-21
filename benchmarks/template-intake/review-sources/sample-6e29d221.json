@@ -1,0 +1,26 @@
+{
+  "commands": [
+    {
+      "command": "'Get-Content inputs/TASK.md; Get-ChildItem -Force; if (Test-Path .agents/skills) { Get-ChildItem .agents/skills -Recurse -Filter SKILL.md | Select-Object -ExpandProperty FullName }'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content .agents/skills/bio-thesis-formatter/SKILL.md; Get-ChildItem inputs -Recurse; Get-ChildItem .agents/skills/bio-thesis-formatter -Recurse'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content inputs/intake.json; Get-Content .agents/skills/bio-thesis-formatter/references/document-modes-and-presets.md; rg -n \"template|replace|marker|blind|author|student\" .agents/skills/bio-thesis-formatter/scripts/init_thesis_docx.py'",
+      "exitCode": 0
+    },
+    {
+      "command": "\"Get-Content .agents/skills/bio-thesis-formatter/scripts/docx_package.py; Get-Content .agents/skills/bio-thesis-formatter/scripts/init_thesis_docx.py | Select-Object -Skip 585 -First 32; python -B -c \\\"import zipfile,pathlib; [(print('\\\\nFILE',p.name),[(print(n,z.read(n).decode('utf-8'))) for n in z.namelist() if n.endswith('.xml')]) for p in pathlib.Path('inputs').glob('*.*') if p.suffix in ('.docx','.dotx') for z in [zipfile.ZipFile(p)]]\\\"\"",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nimport json, pathlib, subprocess, sys, hashlib, zipfile\nimport xml.etree.ElementTree as ET\nroot = pathlib.Path.cwd()\ninputs = root / 'inputs'\nbefore = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs.iterdir() if p.is_file()}\nrows = json.loads((inputs / 'intake.json').read_text(encoding='utf-8'))\nscript = root / '.agents/skills/bio-thesis-formatter/scripts/bio_thesis.py'\nfor row in rows:\n    subprocess.run([sys.executable, '-B', str(script), 'init', '--template', str(inputs / row['template']), '--output', str(root / 'output' / row['output']), '--review-stage', 'blind', '--title-en', row['title_en'], '--major', row['major'], '--author', row['author'], '--student-id', row['student_id']], check=True)\nW = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'\nCT = '{http://schemas.openxmlformats.org/package/2006/content-types}'\nidentifiers = [r[k] for r in rows for k in ('author','student_id')]\nfor row in rows:\n    with zipfile.ZipFile(inputs / row['template']) as zin, zipfile.ZipFile(root / 'output' / row['output']) as zout:\n        assert zout.testzip() is None\n        assert set(zin.namelist()) == set(zout.namelist())\n        for name in zin.namelist():\n            original, result = zin.read(name), zout.read(name)\n            if name.endswith(('.xml', '.rels')):\n                tree = ET.fromstring(result)\n                alltext = ''.join(tree.itertext()) + ' '.join(v for el in tree.iter() for v in el.attrib.values())\n                assert not any(i in alltext for i in identifiers), name\n                assert '{{' not in alltext, name\n            if name in ('word/document.xml', 'word/header1.xml'):\n                old, new = ET.fromstring(original), ET.fromstring(result)\n                oldpars = [''.join(p.itertext()) for p in old.iter(W+'p')]\n                newpars = [''.join(p.itertext()) for p in new.iter(W+'p')]\n                expected = oldpars\n                for key, val in dict(title_en=row['title_en'], major=row['major'], author='【匿名评审隐去】', student_id='【匿名评审隐去】').items():\n                    expected = [s.replace('{{'+key+'}}', val) for s in expected]\n                assert expected == newpars, (name, expected, newpars)\n                def structure(el):\n                    return (el.tag, el.attrib, None if el.tag == W+'t' else el.text, [structure(c) for c in el])\n                assert structure(old) == structure(new), name\n            elif name == '[Content_Types].xml':\n                old, new = ET.fromstring(original), ET.fromstring(result)\n                for el in old:\n                    if el.get('PartName') == '/word/document.xml':\n                        el.set('ContentType', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml')\n                assert ET.tostring(old) == ET.tostring(new)\n            else:\n                assert original == result, name\n        body = ET.fromstring(zout.read('word/document.xml'))\n        visible = '\\\\n'.join(''.join(p.itertext()) for p in body.iter(W+'p'))\n        assert 'Candidate: 【匿名评审隐去】' in visible\n        assert 'Registration: 【匿名评审隐去】' in visible\n        print('VERIFIED:', row['output'], '- fields, anonymity, school content, formatting, media and DOCX type')\nassert before == {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs.iterdir() if p.is_file()}\nprint('VERIFIED: all input files unchanged')\n'@ | python -B -\"",
+      "exitCode": 0
+    }
+  ],
+  "authoredFiles": {},
+  "changed": []
+}

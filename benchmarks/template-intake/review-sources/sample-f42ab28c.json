@@ -1,0 +1,26 @@
+{
+  "commands": [
+    {
+      "command": "'Get-Content -LiteralPath inputs/TASK.md; Get-ChildItem -Force; if (Test-Path .agents/skills) { Get-ChildItem -Recurse -File .agents/skills | Select-Object -ExpandProperty FullName }'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content .agents/skills/bio-thesis-formatter/SKILL.md; Get-Content inputs/intake.json; Get-ChildItem inputs -File'",
+      "exitCode": 0
+    },
+    {
+      "command": "'Get-Content .agents/skills/bio-thesis-formatter/references/document-modes-and-presets.md; Get-Content .agents/skills/bio-thesis-formatter/scripts/init_thesis_docx.py; Get-Content .agents/skills/bio-thesis-formatter/scripts/docx_package.py'",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nfrom pathlib import Path\nfrom zipfile import ZipFile\nfor p in Path('inputs').glob('*.*x'):\n print('\\\\n###',p.name)\n with ZipFile(p) as z:\n  for n in z.namelist():\n   print(n)\n   if n.endswith('.xml') and n not in ['word/styles.xml','word/settings.xml']:\n    print(z.read(n).decode())\n'@ | python -B -\"",
+      "exitCode": 0
+    },
+    {
+      "command": "\"@'\nimport hashlib,json,subprocess,sys\nfrom pathlib import Path\nfrom zipfile import ZipFile\nfrom xml.etree import ElementTree as ET\nrows=json.loads(Path('inputs/intake.json').read_text())\nbefore={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('inputs').iterdir() if p.is_file()}\nfor r in rows:\n cmd=[sys.executable,'-B','.agents/skills/bio-thesis-formatter/scripts/bio_thesis.py','init','--template',str(Path('inputs')/r['template']),'--output',str(Path('output')/r['output']),'--review-stage','blind','--title-en',r['title_en'],'--major',r['major'],'--author',r['author'],'--student-id',r['student_id']]\n subprocess.run(cmd,check=True)\nW='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'\nCT='{http://schemas.openxmlformats.org/package/2006/content-types}'\nDOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'\nidentifiers=[r[k] for r in rows for k in ('author','student_id')]\nfor r in rows:\n with ZipFile(Path('inputs')/r['template']) as z: base={n:z.read(n) for n in z.namelist()}\n with ZipFile(Path('output')/r['output']) as z:\n  assert z.testzip() is None\n  out={n:z.read(n) for n in z.namelist()}\n assert base.keys()==out.keys()\n replacements={'{{title_en}}':r['title_en'],'{{major}}':r['major'],'{{author}}':'【匿名评审隐去】','{{student_id}}':'【匿名评审隐去】'}\n for n,data in out.items():\n  assert not any(s.encode() in data for s in identifiers),(r['output'],n,'identity')\n  if not n.endswith(('.xml','.rels')):\n   assert data==base[n]\n   continue\n  a,b=ET.fromstring(base[n]),ET.fromstring(data)\n  # Compare every element and property; only placeholder text and DOTX main content type may differ.\n  aa,bb=list(a.iter()),list(b.iter())\n  assert len(aa)==len(bb)\n  for x,y in zip(aa,bb):\n   assert x.tag==y.tag\n   expected=dict(x.attrib)\n   if n=='[Content_Types].xml' and x.get('PartName')=='/word/document.xml':expected['ContentType']=DOCX\n   assert expected==y.attrib,(n,'attributes')\n   if x.tag\"'!=W+'\"'t':assert x.text==y.text,(n,'non-text content')\n  # Compare paragraph text, allowing replacements split across runs.\n  ap,bp=list(a.iter(W+'p')),list(b.iter(W+'p'))\n  for x,y in zip(ap,bp):\n   expected=''.join(t.text or '' for t in x.iter(W+'t'))\n   for token,value in replacements.items():expected=expected.replace(token,value)\n   actual=''.join(t.text or '' for t in y.iter(W+'t'))\n   assert expected==actual,(n,expected,actual)\n  full=''.join(b.itertext())\n  assert '{{' not in full,(n,'unfilled marker')\n body=ET.fromstring(out['word/document.xml'])\n text=[''.join(t.text or '' for t in p.iter(W+'t')) for p in body.iter(W+'p')]\n assert 'Candidate: 【匿名评审隐去】' in text\n assert 'Registration: 【匿名评审隐去】' in text\n assert 'Programme: '+r['major'] in text\n assert 'Working title: '+r['title_en'] in text\n print('VERIFIED:',r['output'],'- fields, anonymity, package, original formatting/content/media preserved')\nassert before=={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('inputs').iterdir() if p.is_file()}\nprint('VERIFIED: all input files unchanged')\n'@ | python -B -\"",
+      "exitCode": 0
+    }
+  ],
+  "authoredFiles": {},
+  "changed": []
+}

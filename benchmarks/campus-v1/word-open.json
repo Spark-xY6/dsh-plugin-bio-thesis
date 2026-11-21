@@ -1,0 +1,65 @@
+[
+  {
+    "run": "pair1-bare",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair1-skill",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-bare",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair2-skill",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-bare",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "pair3-skill",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  },
+  {
+    "run": "v030-cli",
+    "sections": 2,
+    "pages": 2,
+    "title": true,
+    "privateToken": false,
+    "toc": 1,
+    "illustrations": 1
+  }
+]

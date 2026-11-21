@@ -88,8 +88,8 @@ $scratch = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath
 $env:DSH_RUNTIME = Join-Path $scratch.FullName 'host'
 $env:PYTHON = (Get-Command python -CommandType Application | Select-Object -First 1).Source
 npm install --prefix $env:DSH_RUNTIME --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.5
-npm pack --ignore-scripts --pack-destination $scratch.FullName
-$env:DSH_PLUGIN_SPEC = Join-Path $scratch.FullName 'dsh-plugin-bio-thesis-0.2.0.tgz'
+$packed = npm pack --silent --ignore-scripts --pack-destination $scratch.FullName
+$env:DSH_PLUGIN_SPEC = Join-Path $scratch.FullName $packed
 node tests/dsh-host.mjs
 </code></pre>
 <p>成功时最后一行以 <code>DSH_E2E=PASS</code> 开头。如需测试公开仓库的特定版本，将 <code>DSH_PLUGIN_SPEC</code> 设为 <code>github:Spark-xY6/dsh-plugin-bio-thesis#&lt;完整的40位提交SHA&gt;</code>，再运行同一命令。以下命令分别用于复现模拟注册测试、Python 发布和回归检查、离线发行包测试。</p>
