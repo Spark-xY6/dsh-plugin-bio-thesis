@@ -3,14 +3,14 @@
 [中文说明](README.zh.md) · [No-Template Paired Benchmark](docs/no-template-comparison.md) · [3-School Template Trial](docs/intake.md) · [Head-to-Head Audit Comparison](docs/comparison.md) · [Word Evaluation](docs/evaluation.md)
 
 **In plain English:** Whether your university hands you an official `.dotx`/`.docx` template **or only a written list of formatting rules**, this zero-dependency DeepSeek Harness (DSH) plugin handles both sides of thesis formatting:
-1. **Generate clean, editable Word drafts**: Preserve an official school template verbatim **or adapt the built-in desensitized academic master via JSON `--profile-config`** in one command (3-section page-number isolation, headers/footers, F9-updatable bold-TOC1 directory, underlined cover table, three-line tables, and blind-review masking);
+1. **Generate clean, continue-editing-safe Word drafts**: Preserve an official school template verbatim **or adapt the built-in desensitized academic master via JSON `--profile-config`** in one command — binding every font, spacing, indentation, three-line table, and figure-caption rule directly into **19 dedicated Word top-ribbon Styles** plus ready-to-continue modular examples so human post-editing never breaks layout (instead of surface text tricks that collapse on follow-up edits);
 2. **Catch silent regressions before submission**: Audit margins per section, `core.xml`/split-run blind-review leaks, italic species/genes, restriction enzyme spacing (`EcoR I` vs `EcoRI`), `µL` vs `uL`, vertical table borders, and uncited/malformed references.
 
 ---
 
 ## Measured Input -> Output Showcase (No-Template Written-Spec Task)
 
-Given only written school specifications (custom A4 margins `2.8/2.4/2.8/2.5 cm`, blind masking, 3-section Roman/Arabic numbering, Nature citations, three-line tables), rendered natively in Microsoft Word 16:
+Given only generic written formatting rules (no `.dotx`/`.docx` file provided), rendered natively in Microsoft Word 16 — `bio-thesis` generates 15 publication-grade pages with 19 dedicated top-ribbon Styles and 0 audit failures in `<2s` (`0` custom lines), compared against bare LLM code generation (`1,212` lines -> `7` audit failures / `29` unstructured generic styles, and `gpt-6.1-sol` `183–208`-line drafts showing unstyled blue headings and missing indents):
 
 ![Word render comparison between bare coding agent and bio-thesis built-in desensitized master](docs/images/no-template-showcase.png)
 
