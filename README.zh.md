@@ -1,47 +1,61 @@
-# 用学校的 Word 模板写论文、查格式
+# 论文格式一把过：Word 模板起稿、无模板按要求微调 & 65 项盲审自查
 
-[English](README.md) · [裸跑和开源工具实测](docs/comparison.md) · [已有工具调研](docs/alternatives.md) · [Word 样例](docs/evaluation.md) · [版本下载](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases)
+[English](README.md) · [无模板配对实测与 Word 实拍](docs/no-template-comparison.md) · [三校模板起稿对照](docs/intake.md) · [同稿审计与开源工具实测](docs/comparison.md) · [Word 样例](docs/evaluation.md)
 
-学院发来一份 Word 模板，封面、声明、页眉和页码已经排好。这个 DeepSeek Harness（DSH）插件能从模板生成可编辑底稿。经过几轮修改，还能将现稿与原模板对照，指出哪些设置变了。硕士、博士及过程报告均可使用。生命科学术语和引文筛查按需启用。
+**一句话看懂它干嘛**：写毕业论文/开题/中期/轮转报告时，**不管你手头有没有学校现成的 Word 模板**，这个 DeepSeek Harness (DSH) 插件都能帮你搞定两件最头疼的事：
+1. **起草不返工**：有学院 `.docx/.dotx` 模板就原样保真起稿；**没有现成模板、只有学院发的文字版格式要求**，就直接调用内置**脱敏通用母版 + JSON 参数微调**，一条命令出出版级底稿（三节页码、页眉横线、F9 可加粗目录、规范三线表与盲审隐去全配齐）；
+2. **交稿不踩雷**：对照模板或文字规范自动抓出隐藏错处——某一节页边距改偏了、`core.xml` 文档属性里漏了作者姓名、物种/基因没斜体、`20 uL` 没写 `µL`、表格多了竖线或多了未引用文献。
 
-## 为什么做
+---
 
-模板解决了“从哪里开始写”，交稿前还需要回答“哪一处改错了”。一篇外观看起来正常的论文，可能有一节的页边距被改过，或者文件属性里仍留着作者姓名。我们调研了学校官方模板、Pandoc、DocFormatTool、网页排版工具和开源论文检查技能，将“警告也可阻止放行”和“单列人工复核任务”落实到本版插件。[已有方案、适用场景与来源](docs/alternatives.md)
+## 先看 Input -> Output 真实 Word 实拍（无模板场景）
 
-## 在 DSH 中安装和调用
+只给 AI 一份文字版学院格式要求（A4、自定义页边距 `2.8/2.4/2.8/2.5 cm`、盲审隐去、三节页码、Nature 引文与三线表），同一模型 `gpt-6.1-sol` 在 Microsoft Word 16 实测渲染如下：
 
-使用备有 pnpm 和 Python 3.10+ 的 DSH 环境。宿主实测使用 DSH 0.2.2-rc.5 和 Node 24。安装到你正在使用的 profile，然后重启该 profile。
+![无学校模板场景下，无插件裸跑与内置脱敏母版微调的 Microsoft Word 渲染对照](docs/images/no-template-showcase.png)
 
-```sh
+| 对比维度 | 无插件裸跑（直接让 Agent 写代码） | 开源轮子（Pandoc / format-thesis-docx 等） | 使用 `dsh-plugin-bio-thesis`（v0.3.0） |
+|---|---|---|---|
+| **无模板按文字要求起稿** | 需现写 **183–208 行** `python-docx`；XML 虽过但 Word 渲染呈“散字封面 + 默认蓝字标题 + 无缩进 + 一级目录未加粗 + 空白页” | Pandoc `--reference-doc` 不保留模板封面和声明页（三校测试仅过 `5/12`） | **0 行手写代码**，1 条命令微调内置脱敏母版：Word 实开 **15/15 出版级版式**（下划线封面、F9 真加粗目录、纯黑标题、页眉线、2 字符缩进） |
+| **有学校 `.dotx`/`.docx` 模板起稿** | 三校模板每次现场手写 **33–37 行**底层 XML 转换代码 | `docxtpl` 可填表但无交稿前结构审计 | **0 行转换代码**，18 份成品全过并可直接在 Word 打开 |
+| **交稿前缺陷全面审计** | 需现场写脚本逐项核查 | `format-thesis-docx` 擅长自动重排现稿，但同套 7 条校规测试仅自动覆盖 **4/14** 缺陷（`DocFormatTool` **1/14**） | 原生 CLI 自动检出 **14/14** 缺陷（含局部字号覆盖）及无模板 8 类盲审/生科规范缺陷（**8/8**） |
+| **盲审防泄露与人工待办清单** | 容易漏查 `docProps/core.xml` 与分段拆分姓名 | 多数工具无跨 XML 身份词与媒体字节防篡改比对 | 同时扫正文、页眉页脚、关系与属性，单独列出签名/图片/跨页人工复核待办及 65 项自查表 |
+
+> **诚实边界说明**：在无模板自主会话配对测试中，若让 Agent 在已生成的内置母版上再行手写底层 XML 补丁，出现过一次手改 XML 导致 Word 报错“文件可能已经损坏”；**推荐始终直接通过 JSON `--profile-config` 与 CLI 参数微调母版**，不要画蛇添足手改底层 XML。[查看完整无模板实测与教训](docs/no-template-comparison.md)
+
+---
+
+## 1 分钟安装与直接套用话术
+
+运行环境：Python 3.10+（**全部处理脚本仅用 Python 标准库，零 `pip install` 第三方依赖**）与 DSH `0.2.2-rc.5+`。
+
+```powershell
 dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.3.0"
 ```
 
-也可以从 [GitHub Release](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/tag/v0.3.0) 下载预构建包，在下载目录运行 `dsh plugin --profile web add ./dsh-plugin-bio-thesis-0.3.0.tgz`。在 DSH 工作目录中放入文件后，可以这样说：
+安装重启该 profile 后，按你手头情况直接复制下面对应的一句话发给 DSH：
 
-> 使用 bio-thesis-formatter，以“学院模板.dotx”生成“论文工作稿.docx”，题目填为“示例研究”。保留学校封面和页眉。另把“修订稿.docx”与这份模板比较，写出“格式检查.md”，列出我还需要在 Word 里看的地方。
+- **情况 A（没有模板，只有一段学院文字格式要求）：**
+  > 请用 bio-thesis-formatter，以内置脱敏母版按我的文字要求（把页边距、引文样式写进 JSON profile 配置，不要手改生成后的 XML）生成博士/硕士/开题报告底稿「论文工作稿.docx」，并把「待检稿.docx」按同一套要求查出所有格式和盲审泄露问题，输出「格式检查.md」。
 
-## 直接运行
+- **情况 B（手里已经有学校发的 `.dotx` / `.docx` 模板）：**
+  > 使用 bio-thesis-formatter，以「学院模板.dotx」生成「论文工作稿.docx」，题目填为「示例研究」，盲审模式隐去作者和导师。另把「修订稿.docx」与这份模板比较，写出「格式检查.md」，列出我还需要在 Word 里人工核对的地方。
 
-从仓库根目录执行。独立命令行工具只用 Python 标准库，可在本机离线处理文档。使用 DSH 对话时，文件访问和模型服务取决于你的 DSH 配置。
+### 独立命令行常用三句（脱离 DSH 也可离线运行）
 
 ```sh
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --template school.dotx --output draft.docx --title-zh "示例研究"
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --template school.dotx --md-report review.md --json-report review.json
+# 1) 无模板：用自定义 JSON 配置微调内置脱敏母版起稿（或加 --template school.dotx 用学校模板）
+python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --profile-config presets/custom-university.example.json --mode phd-thesis --review-stage blind --output draft.docx --title-zh "示例研究" --author "示例作者"
+# 2) 交稿前全面体检（无模板用 --profile-config；有模板加 --template school.dotx；可加 --fail-on-warn）
+python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --profile-config presets/custom-university.example.json --review-stage blind --sensitive-names "示例作者,示例导师" --md-report review.md
+# 3) 导出可编辑 65 项自查表
 python -B skills/bio-thesis-formatter/scripts/bio_thesis.py export-checklist --output checklist.docx
 ```
 
-- **从学校模板起稿。** 使用无宏、无数字签名的 DOCX 或 DOTX。无占位符也可生成保留原内容的工作稿。如需自动填题目、作者和学院，在普通 Word 文字里放入 `{{title_zh}}`、`{{author}}` 或 `{{school}}`。还支持 `title_en`、`university`、`student_id`、`advisor`、`major`、`date_zh`。校徽直接放入模板。域和嵌套内容控件需另行处理。
-- **检查已有稿件。** `audit` 只读对照各节纸张、边距、页码配置、目录域和样式定义。需要检查插图时，加 `--base-docx 上一版.docx`，可检出内嵌媒体的增删和替换。整篇旧稿迁移到另一份模板仍需单独排版。
-- **准备盲审。** 生成时传 `--review-stage blind` 遮盖身份占位符。审查现稿时，同时传 `--review-stage blind --sensitive-names "示例作者,示例导师"`，查找 XML、关系和文档属性中的残留。签名图片和嵌入附件需要目视检查。完整报告可能含本机路径、匹配词和原文片段，请保存在自己的工作目录。
-- **按学院调整。** 模板决定版式。可用 `--citation-style gb7714` 或 `nature` 启用相应数字引文筛查。需检查三线表时，在 JSON 配置写入 `{"audit":{"template_checks":["Tbl-3Line"]}}` 后传 `--profile-config rules.json`。没有学校模板时，省略 `--template` 可生成内置示例。[配置示例](presets/custom-university.example.json)
-- **判读报告。** `FAIL` 表示已启用的规则检出错误，`WARN` 表示需判断，`INFO` 表示提示或未启用。默认有 FAIL 返回 1，只有警告、提示或通过项返回 0，输入或运行错误返回 2。加 `--fail-on-warn` 可让警告也阻止放行。报告单列待人工复核任务。65 项自查表同时包含自动和人工项目，最终目录、分页、跨页表格仍要在 Word 或最终 PDF 中确认。
+---
 
-## 实测效果
+## 进阶实测、边界与开源许可
 
-**三所学校各按自己的模板起稿。** 同一模型做三组配对，裸跑每组现场编写 37 行、至少 33 行、36 行底层 Word 转换代码；加载已发布技能后，三组均直接调用生成命令，新增转换代码均为 0 行。两组共交付 18 份成品，全部通过逐项检查并在 Microsoft Word 中打开。用时中位数为裸跑 65.3 秒、加技能 66.6 秒。[预登记与实测结果](docs/intake.md) · [下载两项实验的实际成品并复评](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/download/v0.3.0/thesis-benchmark-evidence-v1.zip)
-
-同一模型做三组配对，裸跑和加载 v0.2.0 技能都查全了 14 个缺陷，生成底稿也都通过 12 项检查。单独运行插件的审计命令时，旧版查出 12 个，漏掉两处正文局部字号覆盖。v0.3.0 增加了按学校段落样式检查局部覆盖的配置。开源工具 `format-thesis-docx` 在双方共同覆盖的纸张、样式要求上也全部查对，而且能重排旧稿。`docxtpl` 在同一模板上也取得生成 12/12。[逐项结果、合成样例和评分方法](docs/comparison.md)
-
-一份横向 Letter 学校模板生成盲审稿后，自定义页眉和标题样式保留。将上边距由 1800 改为 720 twip（1.25 英寸改为 0.5 英寸），再把示例作者姓名写回，审计准确指出了两处变化。另有真实 DSH 安装测试和 Microsoft Word 打开后的页面检查。[评测记录、复现步骤与限制](docs/evaluation.md) · [持续集成](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)
-
-[MIT 许可证](LICENSE)
+- 📊 **[无模板文字要求配对实测（Word 渲染对比）](docs/no-template-comparison.md)** · **[三校模板起稿对照](docs/intake.md)** · **[14 缺陷与开源工具横向实测](docs/comparison.md)**
+- 🔍 **[已有同类工具调研与借鉴来源](docs/alternatives.md)** · **[真实 DSH 宿主安装与 Word 样例验收](docs/evaluation.md)** · **[持续集成](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)**
+- **注意**：生成工作稿中的表格/引文均为排版占位符，不含真实实验数据；交付前仍需在 Microsoft Word 中选中目录按 `F9` 更新页码，并目视核对跨页表格与图片中的签名/身份信息。源代码基于 [MIT 许可证](LICENSE)。

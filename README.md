@@ -1,46 +1,57 @@
-# Word thesis templates and formatting checks for DeepSeek Harness
+# Thesis Formatting Done Right: Template-Aware & Template-Free Word Drafting + 65-Item Blind Audit
 
-[中文使用说明](README.zh.md) · [Head-to-head results](docs/comparison.md) · [Existing tools](docs/alternatives.md) · [Word example](docs/evaluation.md) · [Downloads](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases)
+[中文说明](README.zh.md) · [No-Template Paired Benchmark](docs/no-template-comparison.md) · [3-School Template Trial](docs/intake.md) · [Head-to-Head Audit Comparison](docs/comparison.md) · [Word Evaluation](docs/evaluation.md)
 
-Start an editable Word thesis from your university’s DOCX or DOTX. After revisions, compare the draft with the same template to check sections, margins and page numbering. The template supplies the cover, styles, headers, fields and pictures. This works across disciplines. Scientific typography and citation conventions are optional.
+**In plain English:** Whether your university hands you an official `.dotx`/`.docx` template **or only a written list of formatting rules**, this zero-dependency DeepSeek Harness (DSH) plugin handles both sides of thesis formatting:
+1. **Generate clean, editable Word drafts**: Preserve an official school template verbatim **or adapt the built-in desensitized academic master via JSON `--profile-config`** in one command (3-section page-number isolation, headers/footers, F9-updatable bold-TOC1 directory, underlined cover table, three-line tables, and blind-review masking);
+2. **Catch silent regressions before submission**: Audit margins per section, `core.xml`/split-run blind-review leaks, italic species/genes, restriction enzyme spacing (`EcoR I` vs `EcoRI`), `µL` vs `uL`, vertical table borders, and uncited/malformed references.
 
-## Why this exists
+---
 
-A template helps a student start correctly. It cannot tell them whether a section margin changed later, an illustration was replaced, or an author name survived in file properties. This plugin brings those checks into DSH. We reviewed official school templates, Pandoc, a DOCX reformatter, a web formatting service and an open-source thesis checker. Two ideas carried into this release are an optional warning gate and an explicit list of pending human checks. [Comparison and sources](docs/alternatives.md)
+## Measured Input -> Output Showcase (No-Template Written-Spec Task)
 
-## Install in DSH
+Given only written school specifications (custom A4 margins `2.8/2.4/2.8/2.5 cm`, blind masking, 3-section Roman/Arabic numbering, Nature citations, three-line tables), rendered natively in Microsoft Word 16:
 
-Use a DSH environment with pnpm and Python 3.10+. Our host test uses DSH 0.2.2-rc.5 on Node 24. Install into the profile you use, then restart that profile.
+![Word render comparison between bare coding agent and bio-thesis built-in desensitized master](docs/images/no-template-showcase.png)
+
+| Dimension | Bare Coding Agent (`gpt-6.1-sol`) | Existing Open-Source Tools | With `dsh-plugin-bio-thesis` (`v0.3.0`) |
+|---|---|---|---|
+| **No-template written-spec generation** | Authored **183–208 lines** of `python-docx`; passed XML checks (`15/15`) yet rendered in Word with plain text cover, **default blue headings/captions**, unbolded TOC1, missing header rule, no 2-char indent, extra blank page | Pandoc `--reference-doc` drops template cover/frontmatter (`5/12` in multi-school trial) | **0 lines custom code**, 1 CLI command adapting the built-in master: **15/15 structural + publication-grade Word visuals** across 15 rendered pages |
+| **3-school `.dotx`/`.docx` template intake** | Wrote **33–37 lines** of raw DOCX conversion code per session | `docxtpl` renders placeholders (`12/12`) without post-revision auditing | **0 lines conversion code**; all 18 outputs passed and opened in Word |
+| **Pre-submission defect detection** | Requires writing ad-hoc checks each run | `format-thesis-docx` excels at auto-reformatting drafts, but caught **4/14** defects on shared rules (`DocFormatTool` **1/14**) | Native CLI caught **14/14** defects (with JSON style rules) and **8/8** planted no-template defects |
+| **Blind-review leak & human checklist** | Easy to miss `docProps/core.xml` or split XML runs | Most formatters lack blind-leak XML scans + human visual checklist | Screens body, headers, rels, and properties; exports editable 65-item checklist |
+
+*Honest engineering note:* In autonomous skill trials where the agent ran `bio_thesis.py init` and *then* wrote manual raw XML post-patches (`complete_document.py`), one session corrupted `styles.xml`/`sectPr` so Word refused to open the file. **Always drive `init --profile-config` directly via JSON/CLI flags rather than hand-patching generated OOXML.** See [No-Template Paired Benchmark](docs/no-template-comparison.md).
+
+---
+
+## 1-Minute Setup & Prompt
+
+Requires Python 3.10+ (**Python standard library only — zero `pip install` needed**) and DSH `0.2.2-rc.5+`.
 
 ```sh
 dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.3.0"
 ```
 
-Alternatively download the prebuilt tarball from the [release](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/tag/v0.3.0) and run `dsh plugin --profile web add ./dsh-plugin-bio-thesis-0.3.0.tgz`. In your DSH workspace, ask:
+After restarting the DSH profile, ask:
 
-> Use bio-thesis-formatter to create draft.docx from school.dotx. Fill the title with “Example study”. Compare revised.docx with school.dotx and save a Markdown report listing what I should check in the final PDF.
+- **No template file (written rules only):**
+  > Use bio-thesis-formatter to adapt the built-in master using a `--profile-config` JSON for my written formatting rules (do not hand-patch generated XML afterward) to create `draft.docx`, and audit `submitted.docx` against those rules into `review.md`.
+- **With school `.dotx`/`.docx` template:**
+  > Use bio-thesis-formatter to create `draft.docx` from `school.dotx` in blind review stage with title `"Example Study"`. Compare `revised.docx` with `school.dotx` and output `review.md` listing remaining Word visual checks.
 
-## Standalone CLI
-
-Run from the repository root with Python 3.10 or later. The document tools use only the Python standard library.
+### Standalone CLI
 
 ```sh
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --template school.dotx --output draft.docx --title-en "Example study"
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --template school.dotx --md-report review.md --json-report review.json
+python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --profile-config presets/custom-university.example.json --mode phd-thesis --review-stage blind --output draft.docx --title-zh "Example Study" --author "Example Author"
+python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --profile-config presets/custom-university.example.json --review-stage blind --sensitive-names "Example Author,Example Advisor" --md-report review.md
 python -B skills/bio-thesis-formatter/scripts/bio_thesis.py export-checklist --output checklist.docx
 ```
 
-- **Templates.** Use unsigned, macro-free DOCX or DOTX files. Plain-text markers such as `{{title_en}}` and `{{author}}` can be filled automatically. An unmarked template also yields an editable copy. Existing manuscripts can be audited. Migrating a complete manuscript to a different template requires separate editing.
-- **Rules.** Add `--base-docx original.docx` to detect changes to embedded media by path and SHA-256. Select `--citation-style nature` or `gb7714` for supported numeric citation patterns. Opt into additional school rules using `audit.template_checks` in a JSON profile. Omit the template to try a built-in starter.
-- **Blind review.** Use `--review-stage blind` when filling identity placeholders. Audit a completed draft with `--review-stage blind --sensitive-names "Example Author,Example Advisor"`. Inspect signatures, pictures and embedded attachments separately. Full reports can contain local paths, matched words and excerpts. The standalone CLI works locally. In chat, file access and model routing follow your DSH configuration.
-- **Results.** An audit exits 1 on a blocking finding, 0 when it completes without one, and 2 for an input or execution error. `--fail-on-warn` also treats warnings as blocking. The report lists pending human checks separately. The 65-item editable checklist includes items requiring visual inspection or judgment.
+---
 
-## Results on synthetic documents
+## Benchmarks & License
 
-**Three different school templates, three paired trials.** With the same model, each bare run wrote 37, at least 33, or 36 new lines of lower-level Word conversion code. With the released skill each run used the existing document command and wrote zero such lines. Both conditions produced all 18 expected files across the trial, and all 18 passed their checks and opened in Microsoft Word. Median times were 65.3 seconds bare and 66.6 seconds with the skill. [Registered task and results](docs/intake.md) · [Actual files for independent scoring](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/download/v0.3.0/thesis-benchmark-evidence-v1.zip)
-
-In three paired runs with the same model, the released v0.2.0 skill and a bare coding agent both identified all 14 planted defects and passed all 12 draft-generation checks. The native command-line audit identified 12 of the 14 defects. The two misses were local font-size overrides, which v0.3.0 can check through a school-specific paragraph-style rule. On the same documents, `format-thesis-docx` caught all four defects in the two requirements covered by both tools. Its strength is applying formatting changes to an existing manuscript. `docxtpl` also passed all 12 generation checks. [Comparison, input generator and scoring rules](docs/comparison.md)
-
-A draft generated from a landscape Letter template retained its header and custom title style. Changing its top margin from 1.25 to 0.5 inches and reinserting a supplied identity produced two specifically identified failures. Microsoft Word opened a separate generated draft, showing the expected header, page field, title and embedded picture. [Evidence, limitations and reproduction](docs/evaluation.md) · [Continuous integration](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)
-
-[MIT license](LICENSE)
+- 📊 **[No-Template Comparison](docs/no-template-comparison.md)** · **[3-School Template Intake](docs/intake.md)** · **[14-Defect Audit Comparison](docs/comparison.md)**
+- 🔍 **[Alternatives & Sources](docs/alternatives.md)** · **[DSH Host & Word Acceptance](docs/evaluation.md)** · **[GitHub Actions](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)**
+- Released under the [MIT License](LICENSE). Placeholder text/tables are structural demonstrations only; refresh TOC fields (`F9`) and inspect signatures/images in Microsoft Word before submission.

@@ -47,7 +47,10 @@ Review [document-modes-and-presets.md](references/document-modes-and-presets.md)
 
 ### Step 2: Initialize Clean `.docx` OR Inspect Existing Draft
 
-Prefer the institution's actual Word template when the user supplies one. Pass `init --template <school.docx|school.dotx> --output <candidate.docx>`. Properties, sections, styles, fields, media and content come from that template. Fill explicit markers in ordinary Word text, such as `{{title_zh}}` with `--title-zh` or `{{author}}` with `--author`. Template mode masks identity markers in blind mode. Check actual identity-bearing text, the file properties, images, signatures and embedded files before sending.
+Support two equally first-class paths depending on what the author supplies:
+
+- **Path A — No school template file (written formatting requirements only)**: Use the bundled desensitized academic master (`resources/bio-thesis-master.docx`) adapted with `--preset` + `--profile-config <custom.json>` (overriding page dimensions, margins in cm, `mirror_margins`, `odd_even_headers`, `typography`, `university_name`, `school_name`, `citation_style`, `--mode`, and `--review-stage`). **Prefer passing parameters and JSON overrides directly to `bio_thesis.py init` rather than writing custom XML-patching scripts on top of the generated `.docx`**, because hand-patching `styles.xml`/`sectPr` nodes can introduce Word open errors.
+- **Path B — School `.docx` / `.dotx` template supplied**: Pass `init --template <school.docx|school.dotx> --output <candidate.docx>`. Properties, sections, styles, fields, media and content come from that template. Fill explicit markers in ordinary Word text, such as `{{title_zh}}` with `--title-zh` or `{{author}}` with `--author`. Template mode masks identity markers in blind mode. Check actual identity-bearing text, the file properties, images, signatures and embedded files before sending.
 
 Pass `audit --template <school.docx|school.dotx>` to use that template as the layout reference. Supply the applicable citation style and use `audit.template_checks` in the optional JSON profile to opt into other school-specific checks. Treat `INFO` coverage gaps and `WARN` findings as review items. Generic settings below apply to the bundled master; inspect the supplied template and local requirements for other institutions.
 
