@@ -1,66 +1,39 @@
-# 论文格式一把过：Word 模板起稿、无模板按校规微调 & 65 项盲审自查
+# 论文格式一把过 · bio-thesis
 
-[English](README.md) · [无模板配对实测与 Word 实拍](docs/no-template-comparison.md) · [三校模板起稿对照](docs/intake.md) · [同稿审计与开源工具实测](docs/comparison.md) · [Word 样例](docs/evaluation.md)
+[English](README.md) · [无模板 Word 实测对照](docs/no-template-comparison.md) · [三校模板起稿对照](docs/intake.md) · [14 缺陷与开源工具实测](docs/comparison.md) · [Word 样例验收](docs/evaluation.md)
 
-写毕业论文、开题、中期或轮转报告时，**不管手头有没有学校现成的 Word 模板**，这个零第三方依赖的 DeepSeek Harness (DSH) 插件都能帮你解决两件最容易返工的事：
+写学位论文、开题或中期报告时，**不管学院有没有发现成 Word 模板**，让普通 AI 直接现写代码拼文档往往只顾表面看着像：字体字号没有真正绑进样式栏，人手拿过来刚改两段话、插一张图，整章格式就全乱了。
 
-1. **排版规矩直接锁进 Word 顶部「样式」栏，拿到文件可放心续写**：有学院 `.docx/.dotx` 模板就原样保真起稿；**只有学院文字要求、没有现成模板时**，一条命令按 JSON 参数自适应重算内置脱敏母版，把标题、正文、图注、表题、三线表与参考文献全部固化进 **Word 上方 19 套专属 `qFormat` 样式**，并在正文中带好可填改的**三线表与图注样板**——人手接过去继续写字、添表、加图也不会越改越乱。
-2. **交稿前自动揪出隐蔽硬伤**：逐节核对页边距与奇偶页页眉、扫描 `core.xml` 和拆分 XML 里的盲审身份残留、检查物种/基因斜体、`µL` 单位写法、三线表竖线与未引用文献。
+`dsh-plugin-bio-thesis` 用零第三方依赖的纯 Python 标准库解决这件事：手头有 `.dotx`/`.docx` 模板就原样保留起稿；**只有学院书面文字规定、没有现成模板时**，一条命令按 JSON 配置文件重算内置脱敏母版，把章节标题、正文行距、缩进、三线表、图注、表题和参考文献格式全部锁进 **Word 顶部的 19 套专属「样式」**里，并在正文中带好可直接改字填数的图 1.1、表 1.1 样板。交稿前还能把页边距偏差、`core.xml` 与拆分 Run 里的盲审身份漏网词、基因物种斜体、`µL` 单位和三线表竖线一次扫清。
 
----
+![Word 顶部 19 套样式锁定、双盲封面、目录与三线表实拍效果](docs/images/no-template-showcase.png)
 
-## Word「样式」自适应与成稿实拍
+## 实测对比与适用边界
 
-只提供一段纯文字格式要求（不含任何 `.docx` 模板），微软 Word 16 实拍如下：插件不靠临时写千行脚本拼表面外观，而是直接重算 `word/styles.xml` 中的 19 个顶部样式并附带现成规范模块；同一条命令切换学校 JSON 参数即可从“某高校（宋体 20 pt / 黑体 / Nature）”自适应切换为“乙高校（仿宋 22 pt / 微软雅黑 / GB/T 7714）”，均一次通过 `FAIL: 0`：
+- **无模板文字要求起稿**：针对一份纯文字盲审规定（《某高校肠道益生菌改善睡眠节律》通用样例），直接让独立子代理从零写脚本花了 `1,212` 行 Python，仍被查出 `7` 项格式与引用错（含 `29` 个杂乱默认样式、缺少图注/文献样式、封面日期偏左及不存在的 `[9]` 越界引用）；本插件 **`0` 行定制代码**，不到 `2` 秒输出 15 页 `FAIL: 0` 底稿，且用同一命令从“某高校（宋体 20 pt / Nature）”换校切换至“乙高校（仿宋 22 pt / GB/T 7714）”同样 `FAIL: 0`。
+- **有学校模板起稿与开源审计对照**：在三所高校真实 `.docx`/`.dotx` 模板测试中 `0` 行转换代码（裸跑需每轮现写 `33–37` 行）且 18 份成稿全部在 Word 16 正常打开；面对 7 所高校 14 项典型隐性缺陷，原生命令行审计检出 **`14/14`（100%）**，同期实测 `format-thesis-docx` 检出 `4/14`、`DocFormatTool` 检出 `1/14`。详情与原始对照日志见 [docs/no-template-comparison.md](docs/no-template-comparison.md) 与 [docs/comparison.md](docs/comparison.md)。
+- **使用时请留意这一点**：如果先运行 `bio_thesis.py init` 生成底稿，再额外让 Agent 手写底层 XML 补丁直接篡改内部标签，曾出现过一次 Word 打不开的问题。**需要修改学校字体、行距或引用体例时，请直接修改 `--profile-config` JSON 或命令行参数，不要手改生成后的 OOXML。**
 
-![Word 顶部 19 个自适应样式与某高校至乙高校样式切换实拍](docs/images/no-template-showcase.png)
+## 1 分钟安装与常用指令
 
-双盲封面脱敏、三节隔离可刷新目录、以及 7 校 14 项典型暗坑自动体检对比开源同类工具实测如下：
-
-![双盲封面、目录页实拍与 7 校 14 项暗坑自动体检对比](docs/images/result-and-audit-showcase.png)
-
-| 对比维度 | 无插件裸跑（让 Agent 现写代码） | 开源工具对照（Pandoc / format-thesis-docx 等） | 使用 `dsh-plugin-bio-thesis`（v0.3.0） |
-|---|---|---|---|
-| **Word 顶部样式与可继续编辑性** | 需现写 **183–1,212 行**脚本；Word 样式栏仍堆 29 个默认杂项、缺图注/文献样式、人手改稿极易串版 | Pandoc `--reference-doc` 会丢失原模板封面与声明页（三校仅 `5/12`） | **0 行定制代码**，`<2s` 直出 15 页工作稿并将规则全锁入 **19 个顶部样式 + 现成三线表/图注模块** |
-| **多校格式要求自适应切换** | 换一所学校就得重写一遍底层样式代码 | `docxtpl` 偏重填表，缺少随文字校规重算样式的审计闭环 | 同一命令换 `--profile-config` JSON 即重算全部样式（某高校 `宋体 20pt` ⇄ 乙高校 `仿宋 22pt` 均 `FAIL: 0`） |
-| **有学校 `.dotx`/`.docx` 模板起稿** | 三校模板每轮需现写 **33–37 行**底层 XML 转换 | 多数模板工具缺少改后结构体检 | **0 行转换代码**，三校 `18/18` 成品在 Word 16 正常打开 |
-| **交稿前暗坑体检与防漏** | 易遗漏 `core.xml` 与跨 Run 拆分姓名 | 同套 7 校 14 项规则测试中，`format-thesis-docx` 仅检出 **4/14**，`DocFormatTool` **1/14** | 原生审计自动检出 **14/14 (100%)** 缺陷与 8 类无模板盲审/生科规范错处，并附 65 项自查清单 |
-
-> **诚实工程边界提示**：在无模板自主会话配对测试中，曾发现若让 Agent 在已生成的内置母版上再手工编写底层 XML 补丁，出现过一次手改 XML 导致 Word 报错“文件可能已经损坏”；**推荐始终直接通过 `--profile-config` JSON 与 CLI 参数驱动 `bio_thesis.py init`**，不要事后手改生成好的底层 XML。[查看完整无模板实测与教训](docs/no-template-comparison.md)
-
----
-
-## 1 分钟安装与直接套用话术
-
-运行环境：Python 3.10+（**全部脚本仅依赖 Python 标准库，无需 `pip install` 第三方包**）与 DSH `0.2.2-rc.5+`。
+需要 Python 3.10+（零 `pip install` 依赖）与 DeepSeek Harness `0.2.2-rc.5+`：
 
 ```powershell
 dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.3.0"
 ```
 
-安装重启该 profile 后，按你手头情况直接复制下面对应的一句话发给 DSH：
+重启对应 profile 后，视你手头资料直接发给助手即可：
 
-- **情况 A（没有模板，只有一段学院文字格式要求）：**
-  > 请用 bio-thesis-formatter，以内置脱敏母版按我的文字要求（把页边距、字号和引文样式写进 JSON profile 配置，不要手改生成后的 XML）生成博士/硕士/开题报告底稿「论文工作稿.docx」，并把「待检稿.docx」按同一套要求查出所有格式和盲审泄露问题，输出「格式检查.md」。
+> **手里只有书面格式要求（无模板）：** 请用 bio-thesis-formatter，以内置脱敏母版按我的文字要求（把页边距、字号和引文样式写进 JSON profile 配置，不要手改生成后的 XML）生成博士/硕士/开题报告底稿「论文工作稿.docx」，并把「待检稿.docx」按同一套要求查出所有格式和盲审泄露问题，输出「格式检查.md」。
 
-- **情况 B（手里已经有学校发的 `.dotx` / `.docx` 模板）：**
-  > 使用 bio-thesis-formatter，以「学院模板.dotx」生成「论文工作稿.docx」，题目填为「示例研究」，盲审模式隐去作者和导师。另把「修订稿.docx」与这份模板比较，写出「格式检查.md」，列出我还需要在 Word 里人工核对的地方。
+> **手里有学校现成 `.dotx`/`.docx` 模板：** 使用 bio-thesis-formatter，以「学院模板.dotx」生成「论文工作稿.docx」，题目填为「示例研究」，盲审模式隐去作者和导师。另把「修订稿.docx」与这份模板比较，写出「格式检查.md」，列出我还需要在 Word 里人工核对的地方。
 
-### 独立命令行常用三句（脱离 DSH 也可离线运行）
+脱离 DSH 也可直接运行三条独立命令：
 
 ```sh
-# 1) 无模板：用自定义 JSON 配置微调内置脱敏母版起稿（或加 --template school.dotx 用学校模板）
 python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --profile-config presets/custom-university.example.json --mode phd-thesis --review-stage blind --output draft.docx --title-zh "示例研究" --author "示例作者"
-# 2) 交稿前全面体检（无模板用 --profile-config；有模板加 --template school.dotx；可加 --fail-on-warn）
 python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --profile-config presets/custom-university.example.json --review-stage blind --sensitive-names "示例作者,示例导师" --md-report review.md
-# 3) 导出可编辑 65 项自查表
 python -B skills/bio-thesis-formatter/scripts/bio_thesis.py export-checklist --output checklist.docx
 ```
 
----
-
-## 进阶实测、边界与开源许可
-
-- 📊 **[无模板文字要求配对实测（Word 渲染对比）](docs/no-template-comparison.md)** · **[三校模板起稿对照](docs/intake.md)** · **[14 缺陷与开源工具横向实测](docs/comparison.md)**
-- 🔍 **[已有同类工具调研与借鉴来源](docs/alternatives.md)** · **[真实 DSH 宿主安装与 Word 样例验收](docs/evaluation.md)** · **[持续集成](https://github.com/Spark-xY6/dsh-plugin-bio-thesis/actions)**
-- **注意**：生成工作稿中的表格与引文均为排版占位符，不含真实实验数据；交付前仍需在 Microsoft Word 中选中目录按 `F9` 更新页码，并目视核对跨页表格与图片中的签名/身份信息。源代码基于 [MIT 许可证](LICENSE)。
+工作稿中的图、表与引文均为结构占位示例；正式提交前记得在 Word 中选中目录按 `F9` 更新页码，并目视复核签名页、图片内容与跨页表格。更多说明见 [docs/intake.md](docs/intake.md)、[docs/alternatives.md](docs/alternatives.md) 与 [docs/evaluation.md](docs/evaluation.md)，项目采用 [MIT 许可证](LICENSE)。
