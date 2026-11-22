@@ -1,27 +1,32 @@
-# Thesis Formatting Done Right: Template-Aware & Template-Free Word Drafting + 65-Item Blind Audit
+# Thesis Formatting Done Right: Word Ribbon Style Locking, Template-Free Adaptation & 65-Item Blind Audit
 
 [中文说明](README.zh.md) · [No-Template Paired Benchmark](docs/no-template-comparison.md) · [3-School Template Trial](docs/intake.md) · [Head-to-Head Audit Comparison](docs/comparison.md) · [Word Evaluation](docs/evaluation.md)
 
-**In plain English:** Whether your university hands you an official `.dotx`/`.docx` template **or only a written list of formatting rules**, this zero-dependency DeepSeek Harness (DSH) plugin handles both sides of thesis formatting:
-1. **Generate clean, continue-editing-safe Word drafts**: Preserve an official school template verbatim **or adapt the built-in desensitized academic master via JSON `--profile-config`** in one command — binding every font, spacing, indentation, three-line table, and figure-caption rule directly into **19 dedicated Word top-ribbon Styles** plus ready-to-continue modular examples so human post-editing never breaks layout (instead of surface text tricks that collapse on follow-up edits);
-2. **Catch silent regressions before submission**: Audit margins per section, `core.xml`/split-run blind-review leaks, italic species/genes, restriction enzyme spacing (`EcoR I` vs `EcoRI`), `µL` vs `uL`, vertical table borders, and uncited/malformed references.
+Whether your department gives you an official `.dotx`/`.docx` template **or only a written list of formatting rules**, this zero-dependency DeepSeek Harness (DSH) plugin handles both sides of thesis preparation cleanly:
+
+1. **Lock school rules into Word's top ribbon Styles so drafts survive real editing**: Preserve an official template verbatim **or adapt the built-in desensitized academic master via JSON `--profile-config`** in one command—writing fonts, line spacing, indents, three-line tables, figure captions, and bibliography formatting into **19 dedicated `qFormat` Styles** plus ready-to-edit sample blocks (`图 1.1` / `表 1.1`). When you keep typing or revising inside Microsoft Word, layout stays intact instead of collapsing.
+2. **Catch silent regressions before submission**: Audit section margins and odd/even headers, `core.xml` / split-run blind-review leaks, italic species and genes, `µL` vs `uL`, restriction enzyme spacing, vertical table borders, and uncited or out-of-range references.
 
 ---
 
-## Measured Input -> Output Showcase (No-Template Written-Spec Task)
+## Adaptive Word Ribbon Styles & Output Showcase
 
-Given only generic written formatting rules (no `.dotx`/`.docx` file provided), rendered natively in Microsoft Word 16 — `bio-thesis` generates 15 publication-grade pages with 19 dedicated top-ribbon Styles and 0 audit failures in `<2s` (`0` custom lines), compared against bare LLM code generation (`1,212` lines -> `7` audit failures / `29` unstructured generic styles, and `gpt-6.1-sol` `183–208`-line drafts showing unstyled blue headings and missing indents):
+Given only written school formatting rules (no `.dotx`/`.docx` template), Microsoft Word 16 verification confirms that one command locks all **19 quick-access Styles** into `word/styles.xml` alongside pre-formatted table/caption examples. Switching `--profile-config` JSON adapts fonts and citation styles across universities cleanly (verified `某高校` `SimSun 20pt / Nature` ⇄ `乙高校` `FangSong 22pt / GB/T 7714`, both passing with `AUDIT_SUMMARY=FAIL:0`):
 
-![Word render comparison between bare coding agent and bio-thesis built-in desensitized master](docs/images/no-template-showcase.png)
+![Word top-ribbon 19 adaptive Styles and multi-university switching showcase](docs/images/no-template-showcase.png)
 
-| Dimension | Bare Coding Agent (`gpt-6.1-sol`) | Existing Open-Source Tools | With `dsh-plugin-bio-thesis` (`v0.3.0`) |
+Blind-review cover redaction, 3-section isolated TOC (`F9`-updatable), and our 7-school 14-defect automated audit benchmark against open-source tools:
+
+![Rendered blind cover, isolated TOC, and 14-defect detection benchmark](docs/images/result-and-audit-showcase.png)
+
+| Dimension | Bare Coding Agent (Ad-Hoc Python) | Open-Source Baselines | With `dsh-plugin-bio-thesis` (`v0.3.0`) |
 |---|---|---|---|
-| **No-template written-spec generation** | Authored **183–208 lines** of `python-docx`; passed XML checks (`15/15`) yet rendered in Word with plain text cover, **default blue headings/captions**, unbolded TOC1, missing header rule, no 2-char indent, extra blank page | Pandoc `--reference-doc` drops template cover/frontmatter (`5/12` in multi-school trial) | **0 lines custom code**, 1 CLI command adapting the built-in master: **15/15 structural + publication-grade Word visuals** across 15 rendered pages |
-| **3-school `.dotx`/`.docx` template intake** | Wrote **33–37 lines** of raw DOCX conversion code per session | `docxtpl` renders placeholders (`12/12`) without post-revision auditing | **0 lines conversion code**; all 18 outputs passed and opened in Word |
-| **Pre-submission defect detection** | Requires writing ad-hoc checks each run | `format-thesis-docx` excels at auto-reformatting drafts, but caught **4/14** defects on shared rules (`DocFormatTool` **1/14**) | Native CLI caught **14/14** defects (with JSON style rules) and **8/8** planted no-template defects |
-| **Blind-review leak & human checklist** | Easy to miss `docProps/core.xml` or split XML runs | Most formatters lack blind-leak XML scans + human visual checklist | Screens body, headers, rels, and properties; exports editable 65-item checklist |
+| **Word ribbon Styles & post-edit safety** | Authored **183–1,212 lines** (`7` failures in latest neutral trial: `29` generic styles, missing caption/bib styles, `[1]`/`[9]` bugs) | Pandoc `--reference-doc` drops template covers/frontmatter (`5/12` in 3-school trial) | **0 lines custom code**, `<2s` for a 15-page draft with **19 bound `qFormat` Styles** + editable 3-line table/caption templates |
+| **Multi-school rule adaptation** | Requires rewriting script logic per university | `docxtpl` renders tags without rule-driven style recalculation | Swap `--profile-config` JSON -> recalculates `word/styles.xml` (`某高校` ⇄ `乙高校`, `FAIL: 0`) |
+| **3-school `.dotx`/`.docx` template intake** | Wrote **33–37 lines** of raw XML glue per run | Template fillers lack post-revision structural auditing | **0 lines conversion code**; all `18/18` outputs passed and opened cleanly in Word 16 |
+| **Pre-submission defect detection** | Prone to miss `docProps/core.xml` or split runs | On shared 7-school rules, `format-thesis-docx` caught **4/14** and `DocFormatTool` caught **1/14** | Native CLI caught **14/14 (100%)** shared defects + `8/8` planted no-template defects + 65-item checklist |
 
-*Honest engineering note:* In autonomous skill trials where the agent ran `bio_thesis.py init` and *then* wrote manual raw XML post-patches (`complete_document.py`), one session corrupted `styles.xml`/`sectPr` so Word refused to open the file. **Always drive `init --profile-config` directly via JSON/CLI flags rather than hand-patching generated OOXML.** See [No-Template Paired Benchmark](docs/no-template-comparison.md).
+*Honest engineering note:* In autonomous skill trials where an agent ran `bio_thesis.py init` and then manually patched raw OOXML (`complete_document.py`), one session corrupted `styles.xml`/`sectPr` so Word refused to open the file. **Always drive formatting via `--profile-config` JSON and CLI flags rather than hand-patching generated XML.** See [No-Template Paired Benchmark](docs/no-template-comparison.md).
 
 ---
 
