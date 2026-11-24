@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only OOXML & 65-item compliance auditor using Python stdlib only."""
+"""Read-only OOXML & 67-item compliance auditor using Python stdlib only."""
 
 from __future__ import annotations
 
@@ -15,19 +15,23 @@ from dataclasses import asdict, dataclass
 
 from docx_package import has_main_relationship, identity_parts, read_template, resolve_target, same_path, staged_file, word_main_type
 from init_thesis_docx import _resolve_page_dxa, load_effective_preset
+from repair_margins import _direct_equal_length_compatible, align_section_indices, elem_has_field
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 W14_NS = "http://schemas.microsoft.com/office/word/2010/wordml"
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+SVG_NS = "http://www.w3.org/2000/svg"
 W = f"{{{W_NS}}}"
+A = f"{{{A_NS}}}"
 R = f"{{{R_NS}}}"
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parent.parent.resolve()
 SCHOOL_CHECKS = {
     'Err-9', 'Layout-9', 'Err-8', 'Layout-BodySpacing', 'Ref-9', 'Tbl-3Line',
-    'Fig-1', 'Fig-3-8', 'Fig-4', 'Fig-9-10', 'Acad-2', 'Acad-14', 'Err-2-11-12',
-    'Err-7', 'Layout-7', 'WordCount',
+    'Fig-4', 'Fig-5', 'Fig-9-10', 'Acad-2', 'Acad-14', 'Acad-CV',
+    'Err-2-11-12', 'Err-7', 'Err-14', 'Layout-7',
 }
 
 CH1_STYLES = {"Heading1Chapter", "04", "Heading1", "heading 1"}
@@ -36,7 +40,7 @@ H3_STYLES = {"Heading3Subsec", "06XXX", "Heading3", "heading 3"}
 H4_STYLES = {"Heading4Para", "07XXXX", "Heading4", "heading 4"}
 ABS_ZH_STYLES = {"AbstractBodyZH", "02"}
 ABS_EN_STYLES = {"AbstractBodyEN", "03"}
-BODY_STYLES = {"BodyTextZH", "08", "Normal", "a"}
+BODY_STYLES = {"BodyTextZH", "08", "Normal", "a", "BodyText"}
 FIG_CAP_STYLES = {"FigureCaption", "09"}
 TBL_TITLE_STYLES = {"TableTitle", "100"}
 TBL_NOTE_STYLES = {"TableNote", "12"}
@@ -54,11 +58,43 @@ BAD_UNIT_U_RE = re.compile(r"(?<![A-Za-z0-9_])(\d+(?:\.\d+)?\s*)?u([LlgM])\b")
 NO_SPACE_UNIT_RE = re.compile(
     r"(?<![A-Za-z0-9\-–—_])(\d+(?:\.\d+)?)(mL|µL|μL|nL|mg|µg|μg|ng|kg|mM|µM|μM|nM|pM|kb|Mb|kDa|Da|rpm)\b"
 )
-CJK_TIME_RE = re.compile(r"(?:\d|\s)(?:小时|分钟|秒)(?:后|内|时|，|。|、|）|$)")
-ENG_TIME_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:hr|hrs|min|mins|sec|secs)\b", re.IGNORECASE)
+CJK_TIME_RE = re.compile(
+    r"(?:(?:\d+(?:\.\d+)?|[一二三四五六七八九十两半]+)\s*(?:个?\s*小时|分钟|秒钟?)|\d+(?:\.\d+)?\s*[周天]|[一二三五六七八九十两]+\s*[周天]|四周(?:后|内|前|龄|期))"
+)
+ENG_TIME_WORD_RE = re.compile(
+    r"(?<![.\dA-Za-z])\d+(?:\.\d+)?\s*(?:hr|hrs|hour|hours|min|mins|minute|minutes|sec|secs|second|seconds|wk|wks|week|weeks)\b",
+    re.IGNORECASE,
+)
+ENG_TIME_SYM_RE = re.compile(
+    r"(?<![.\dA-Za-z])(?!19\d0s\b|20\d0s\b|1[68]s\b|2[38]s\b|\d+s(?=\s*(?:核糖体|亚基|rRNA|ribosom|subunit|年代)))\d+(?:\.\d+)?\s*(?:h|s|d)\b(?!\s*(?:电泳|培养|重建|结构|图|gel))"
+)
+FIG_TBL_REF_STRIP_RE = re.compile(r"(?:Fig\.?|Figure|Panel|Table|图|表)\s*[A-Z]?\d+(?:\.\d+)?\s*[A-Za-z]*")
 FORMULA_RE = re.compile(r'(?<![A-Za-z0-9_])(?:H2O|CO2|Ca2\+|Mg2\+|O2|N2)(?![A-Za-z0-9_])')
-SUBPANEL_DUNHAO_RE = re.compile(r"图\s*[A-D1-9]\d*\.\d+\s*[A-Z](?:、[A-Z])+")
+SUBPANEL_BAD_SEP_RE = re.compile(r"(?:补充图|图)\s*[A-D1-9]\d*[.\-]\d+\s*[A-Z](?:\s*[,、]\s*[A-Z])+")
 CJK_ASCII_PUNCT_RE = re.compile(r"[\u4e00-\u9fff][,;:\(\)][\u4e00-\u9fff]")
+VENDOR_KEYWORDS_RE = re.compile(
+    r"(?:Instrument|Instruments|Bio-Rad|Thermo|Fisher|Sigma|Aldrich|Abcam|Illumina|Beckman|Olympus|Zeiss|Leica|Nikon|Corning|Gibco|Invitrogen|Takara|Vazyme|Beyotime|CST|NEB|Qiagen|Roche|Merck|Agilent|Waters|Bruker|Sutter|Eppendorf|BGI|Novogene|Technologies|Scientific|Biosciences|Co\.|Inc\.|Ltd\.|Corp\.|GmbH|公司|生物|科技|仪器|试剂|集团)",
+    re.IGNORECASE,
+)
+VENDOR_BRAND_RE = re.compile(
+    r"(?:Instrument|Instruments|Bio-Rad|Thermo|Fisher|Sigma|Aldrich|Abcam|Illumina|Beckman|Olympus|Zeiss|Leica|Nikon|Corning|Gibco|Invitrogen|Takara|Vazyme|Beyotime|CST|NEB|Qiagen|Roche|Merck|Agilent|Waters|Bruker|Sutter|Eppendorf|BGI|Novogene|Technologies|Scientific|Biosciences|Co\.|Inc\.|Ltd\.|Corp\.|GmbH|有限公司|公司|集团|生物科技|股份)",
+    re.IGNORECASE,
+)
+PAREN_ZH_CONTENT_RE = re.compile(r"（([^（）\n]{1,100})）")
+PAREN_VENDOR_DUNHAO_RE = re.compile(
+    r"[（(]([^（）()\n]{1,70}、[^（）()\n]{1,70})[）)]"
+)
+CJK_HALF_SPACE_RE = re.compile(r"[\u4e00-\u9fff][ \t]+[\u4e00-\u9fff]")
+ASCII_FULL_SPACE_RE = re.compile(r"[A-Za-z0-9.,;:!?%°]\u3000+")
+FIRST_PERSON_RE = re.compile(
+    r"(?:(?<![自本超忘大小敌物你他非真])我们?(?!国)|(?<![A-Za-z样日基技版剧脚成原书话读拓复副正孤珍绝])本人(?![口数群员均士籍类物])|(?<![A-Za-z])(?:笔者|咱们))"
+)
+DOI_RE = re.compile(r"(?:\bdoi\s*:\s*|https?://(?:dx\.)?doi\.org/|\b10\.\d{4,9}/\S+)", re.IGNORECASE)
+AHEAD_OF_PRINT_RE = re.compile(
+    r"(?:advance online publication|online ahead of print|epub ahead of print|ahead of print|in press|preprint|biorxiv|medrxiv|arxiv|research square|ssrn|在线发表|网络首发|预印本|待刊)",
+    re.IGNORECASE,
+)
+PUBLISHED_VOL_PAGE_RE = re.compile(r"\b\d+\s*[,:]\s*[A-Za-z]?\d+(?:\s*[–-]\s*[A-Za-z]?\d+)?\s*\(\d{4}\)")
 ABBR_PAREN_RE = re.compile(r"([^（(]{2,45}?)[（(](?:([^（）()]+?)[，,]\s*)?([A-Za-z][A-Za-z0-9\-/]{1,14})[）)]")
 
 LOWERCASE_ALLOWED_JOURNALS = {"elife", "iscience", "biorxiv", "medrxiv", "plos"}
@@ -82,6 +118,11 @@ def _p_text(el: ET.Element) -> str:
     return "".join(t.text or "" for t in el.iter(f"{W}t"))
 
 
+def _live_p_text(el: ET.Element) -> str:
+    """Extract live run text inside a paragraph while excluding deleted runs and nested textboxes."""
+    return "".join(_r_text(r) for r in _live_word_items(el, W + "r"))
+
+
 def _r_text(r: ET.Element) -> str:
     return "".join(t.text or "" for t in r.iter(f"{W}t"))
 
@@ -99,6 +140,75 @@ def _on(node: ET.Element | None) -> bool:
     return node is not None and node.get(W + 'val', '1') not in ('0', 'false', 'off')
 
 
+def _fmt_dxa(value: int | str | None) -> str:
+    if isinstance(value, int):
+        return f"{value * 2.54 / 1440:.2f} cm ({value} dxa)"
+    return str(value)
+
+
+def _iter_story_blocks(container: ET.Element):
+    """Yield p and tbl blocks in document order, unwrapping w:sdt controls while skipping deleted/textbox content."""
+    for child in list(container):
+        if child.tag in (W + 'del', W + 'moveFrom', W + 'txbxContent'):
+            continue
+        if child.tag == W + 'sdt':
+            content = child.find(W + 'sdtContent')
+            if content is not None:
+                yield from _iter_story_blocks(content)
+        elif child.tag in (W + 'p', W + 'tbl'):
+            yield child
+
+
+def _load_theme_fonts(theme_root: ET.Element | None) -> dict[str, str]:
+    fonts: dict[str, str] = {}
+    if theme_root is None:
+        return fonts
+    for role, tag in (('major', 'majorFont'), ('minor', 'minorFont')):
+        node = theme_root.find(f'.//{A}{tag}')
+        if node is None:
+            continue
+        latin = node.find(A + 'latin')
+        if latin is not None and latin.get('typeface'):
+            fonts[f'{role}HAnsi'] = latin.get('typeface', '')
+            fonts[f'{role}Ascii'] = latin.get('typeface', '')
+        ea = node.find(A + 'ea')
+        ea_face = ea.get('typeface', '') if ea is not None else ''
+        if not ea_face:
+            for alt in node.findall(A + 'font'):
+                if alt.get('script') in ('Hans', 'Hant', 'EastAsia') and alt.get('typeface'):
+                    ea_face = alt.get('typeface', '')
+                    break
+        if ea_face:
+            fonts[f'{role}EastAsia'] = ea_face
+    return fonts
+
+
+def _load_numbering(numbering_root: ET.Element | None) -> tuple[dict[str, str], dict[tuple[str, str], tuple[str, str]]]:
+    """Return (numId->abstractNumId, (abstractNumId, ilvl)->(lvlText, suff))."""
+    num_to_abs: dict[str, str] = {}
+    levels: dict[tuple[str, str], tuple[str, str]] = {}
+    if numbering_root is None:
+        return num_to_abs, levels
+    for abs_el in numbering_root.findall(W + 'abstractNum'):
+        abs_id = abs_el.get(W + 'abstractNumId')
+        if not abs_id:
+            continue
+        for lvl in abs_el.findall(W + 'lvl'):
+            ilvl = lvl.get(W + 'ilvl', '0')
+            lt = lvl.find(W + 'lvlText')
+            sf = lvl.find(W + 'suff')
+            levels[(abs_id, ilvl)] = (
+                lt.get(W + 'val', '') if lt is not None else '',
+                sf.get(W + 'val', 'tab') if sf is not None else 'tab',
+            )
+    for num_el in numbering_root.findall(W + 'num'):
+        nid = num_el.get(W + 'numId')
+        aid = num_el.find(W + 'abstractNumId')
+        if nid and aid is not None and aid.get(W + 'val'):
+            num_to_abs[nid] = aid.get(W + 'val', '')
+    return num_to_abs, levels
+
+
 def _section_geometry(section: ET.Element) -> dict[str, int | str | None]:
     geometry = {}
     for tag, keys in (('pgSz', ('w', 'h')), ('pgMar', ('top', 'bottom', 'left', 'right', 'header', 'footer', 'gutter'))):
@@ -107,20 +217,28 @@ def _section_geometry(section: ET.Element) -> dict[str, int | str | None]:
             value = node.get(W + key) if node is not None else None
             geometry[key] = int(value) if value is not None else None
         if tag == 'pgSz':
-            geometry['orient'] = node.get(W + 'orient', 'portrait') if node is not None else None
+            if node is not None:
+                orient = node.get(W + 'orient')
+                if not orient and geometry.get('w') and geometry.get('h') and geometry['w'] > geometry['h']:
+                    orient = 'landscape'
+                geometry['orient'] = orient or 'portrait'
+            else:
+                geometry['orient'] = None
     return geometry
 
 
 def _instructions(root: ET.Element, command: str) -> bool:
-    pattern = re.compile(r'^\s*' + re.escape(command) + r'(?:\s|$)', re.IGNORECASE)
-    if any(pattern.search(field.get(W + 'instr', '')) for field in root.iter(W + 'fldSimple')):
-        return True
-    for paragraph in root.iter(W + 'p'):
-        text = ' '.join(node.text or '' for node in paragraph.iter(W + 'instrText'))
-        joined = ''.join(node.text or '' for node in paragraph.iter(W + 'instrText'))
-        if pattern.search(text) or pattern.search(joined):
-            return True
-    return False
+    return elem_has_field(root, command)
+
+
+def _is_toc_para(el: ET.Element) -> bool:
+    ps = (_p_style(el) or '').lower()
+    return ps.startswith('toc') or _instructions(el, 'PAGEREF') or _instructions(el, 'TOC')
+
+
+def _live_sections(doc_root: ET.Element) -> list[ET.Element]:
+    body = doc_root.find(W + 'body')
+    return list(_live_word_items(body, W + 'sectPr')) if body is not None else []
 
 
 def _section_numbering(sections, parsed, rels_map):
@@ -144,6 +262,21 @@ def _section_numbering(sections, parsed, rels_map):
     return result
 
 
+def _section_meta(geometry_list, numbering_list) -> list[dict]:
+    meta = []
+    for g, (fmt, start, kind, title_pg, active, _) in zip(geometry_list, numbering_list):
+        orient = g.get('orient') or ('landscape' if (g.get('w') or 0) > (g.get('h') or 0) else 'portrait')
+        meta.append({
+            'orient': orient,
+            'fmt': fmt,
+            'start': start,
+            'kind': kind,
+            'title_pg': title_pg,
+            'has_page': bool(active),
+        })
+    return meta
+
+
 def _template_snapshot(template_path: str) -> dict:
     items, _ = read_template(pathlib.Path(template_path))
     parts = {k: ET.fromstring(v) for k, v in items.items() if k.endswith(('.xml', '.rels'))}
@@ -151,11 +284,14 @@ def _template_snapshot(template_path: str) -> dict:
     rels = parts.get('word/_rels/document.xml.rels')
     rels_map = {r.get('Id', ''): resolve_target('word/document.xml', r.get('Target', ''))
                 for r in rels if r.get('TargetMode', 'Internal') == 'Internal'} if rels is not None else {}
-    sections = list(document.iter(W + 'sectPr'))
+    sections = _live_sections(document)
+    geom = [_section_geometry(sec) for sec in sections]
+    num = _section_numbering(sections, parts, rels_map)
     return {
         'settings': parts.get('word/settings.xml'),
-        'geometry': [_section_geometry(sec) for sec in sections],
-        'numbering': _section_numbering(sections, parts, rels_map),
+        'geometry': geom,
+        'numbering': num,
+        'section_meta': _section_meta(geom, num),
         'toc': _instructions(document, 'TOC'),
         'style_props': _style_properties(parts.get('word/styles.xml')),
     }
@@ -211,7 +347,7 @@ def _live_word_items(parent, tag):
     stack = list(reversed(parent))
     while stack:
         item = stack.pop()
-        if item.tag in (W + 'del', W + 'moveFrom', W + 'txbxContent'):
+        if item.tag in (W + 'del', W + 'moveFrom', W + 'txbxContent', W + 'sectPrChange'):
             continue
         if item.tag == W + 'tr' and item.find(f'./{W}trPr/{W}del') is not None:
             continue
@@ -251,16 +387,110 @@ def _formula_review(paragraph, styles):
     return issues
 
 
+def _parse_svg_font_pt(raw_val: str | None) -> float | None:
+    if not raw_val:
+        return None
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*(pt|px)?\s*$", raw_val, re.IGNORECASE)
+    if not m:
+        return None
+    val = float(m.group(1))
+    # Bare unitless SVG font-size values represent px/user-units (96 dpi -> 0.75 pt).
+    unit = (m.group(2) or "px").lower()
+    return val * 0.75 if unit == "px" else val
+
+
+def _extract_svg_node_pt(node: ET.Element) -> float | None:
+    pt = _parse_svg_font_pt(node.get("font-size"))
+    if pt is None:
+        style_attr = node.get("style") or ""
+        ms = re.search(r"font-size\s*:\s*([^;]+)", style_attr, re.IGNORECASE)
+        if ms:
+            pt = _parse_svg_font_pt(ms.group(1))
+    return pt
+
+
+def _walk_svg_text_sizes(node: ET.Element, inherited_pt: float | None, part: str, min_fig_pt: float, issues: list[str]) -> int:
+    checked = 0
+    own_pt = _extract_svg_node_pt(node)
+    eff_pt = own_pt if own_pt is not None else inherited_pt
+    local = _tag_local(node)
+    if local in ("text", "tspan"):
+        own_txt = (node.text or "").strip()
+        if own_txt and eff_pt is not None:
+            checked += 1
+            if eff_pt < min_fig_pt - 1e-6:
+                issues.append(f"{part} 内文字小于 6 号字 ({eff_pt:.1f} < {min_fig_pt:g} pt): {own_txt[:24]!r}")
+    for child in node:
+        checked += _walk_svg_text_sizes(child, eff_pt, part, min_fig_pt, issues)
+        if local in ("text", "tspan") and (child.tail or "").strip() and eff_pt is not None:
+            checked += 1
+            if eff_pt < min_fig_pt - 1e-6:
+                issues.append(f"{part} 内文字小于 6 号字 ({eff_pt:.1f} < {min_fig_pt:g} pt): {(child.tail or '').strip()[:24]!r}")
+    return checked
+
+
+def _inspect_figure_font_sizes(
+    main_blocks: list[ET.Element],
+    zf: zipfile.ZipFile,
+    names: set[str],
+    rels_map: dict[str, str],
+    min_fig_pt: float,
+) -> tuple[int, list[str]]:
+    checked = 0
+    issues: list[str] = []
+    seen_svgs: set[str] = set()
+    for blk in main_blocks:
+        for box in [*blk.iter(f"{W}drawing"), *blk.iter(f"{W}pict")]:
+            for ar in box.iter(f"{A}r"):
+                txt = "".join(t.text or "" for t in ar.iter(f"{A}t")).strip()
+                if not txt:
+                    continue
+                rpr = ar.find(f"./{A}rPr")
+                sz = rpr.get("sz") if rpr is not None else None
+                if sz and sz.isdigit():
+                    checked += 1
+                    pt = int(sz) / 100.0
+                    if pt < min_fig_pt - 1e-6:
+                        issues.append(f"图中 DrawingML 文字小于 6 号字 ({pt:.1f} < {min_fig_pt:g} pt): {txt[:24]!r}")
+            for wr in box.iter(f"{W}r"):
+                txt = "".join(t.text or "" for t in wr.iter(f"{W}t")).strip()
+                if not txt:
+                    continue
+                sz_el = wr.find(f"./{W}rPr/{W}sz")
+                sz_v = sz_el.get(W + "val") if sz_el is not None else None
+                if sz_v and sz_v.isdigit():
+                    checked += 1
+                    pt = int(sz_v) / 2.0
+                    if pt < min_fig_pt - 1e-6:
+                        issues.append(f"图中文本框文字小于 6 号字 ({pt:.1f} < {min_fig_pt:g} pt): {txt[:24]!r}")
+            for el in box.iter():
+                rid = el.get(f"{R}embed")
+                if not rid:
+                    continue
+                part = rels_map.get(rid, "")
+                if part.lower().endswith(".svg") and part in names and part not in seen_svgs:
+                    seen_svgs.add(part)
+                    try:
+                        svg_root = ET.fromstring(zf.read(part))
+                    except (ET.ParseError, UnicodeDecodeError) as exc:
+                        checked += 1
+                        issues.append(f"{part} 内嵌 SVG 解析失败: {exc}")
+                        continue
+                    checked += _walk_svg_text_sizes(svg_root, None, part, min_fig_pt, issues)
+    return checked, issues
+
+
 def _direct_format_checks(policy, styles, body):
     if not isinstance(policy, dict):
         raise ValueError('audit must be a JSON object')
-    supported = {'template_checks', 'disabled_checks', 'allow_live_citations', 'direct_formatting'}
+    supported = {'template_checks', 'disabled_checks', 'allow_live_citations', 'forbid_published_doi', 'direct_formatting'}
     unknown = policy.keys() - supported
     if unknown:
         raise ValueError(f'Unknown audit option(s): {", ".join(sorted(unknown))}. '
                          f'Supported: {", ".join(sorted(supported))}.')
-    if 'allow_live_citations' in policy and not isinstance(policy['allow_live_citations'], bool):
-        raise ValueError('audit.allow_live_citations must be true or false')
+    for bool_key in ('allow_live_citations', 'forbid_published_doi'):
+        if bool_key in policy and not isinstance(policy[bool_key], bool):
+            raise ValueError(f'audit.{bool_key} must be true or false')
     rules = policy.get('direct_formatting', [])
     if not isinstance(rules, list):
         raise ValueError('audit.direct_formatting must be a list of rules')
@@ -313,56 +543,69 @@ def _border_visible(border) -> bool:
     return border is not None and border.get(W + 'val', 'nil') not in ('nil', 'none')
 
 
-def _matches_rule(border, size: str) -> bool:
-    return border is not None and border.get(W + 'val') == 'single' and border.get(W + 'sz') == size
+def _matches_rule(border, sizes: str | tuple[str, ...]) -> bool:
+    allowed = (sizes,) if isinstance(sizes, str) else sizes
+    return border is not None and border.get(W + 'val') == 'single' and border.get(W + 'sz') in allowed
 
 
-def _table_problems(table: ET.Element) -> tuple[list[str], bool]:
+def _table_problems(table: ET.Element) -> tuple[list[str], list[str], bool]:
     props = table.find(W + 'tblPr')
     borders = table.find(f'./{W}tblPr/{W}tblBorders')
     if borders is None:
         inherited = props is not None and props.find(W + 'tblStyle') is not None
-        return ['无显式边框，须验证表格样式解析结果' if inherited else '缺少显式表格三线边框'], inherited
-    problems = []
+        if inherited:
+            return [], ['无显式边框，须验证表格样式解析结果'], True
+        return ['缺少显式表格三线边框'], [], False
+    problems: list[str] = []
+    warnings: list[str] = []
     for side in ('top', 'bottom'):
-        if not _matches_rule(borders.find(W + side), '12'):
-            problems.append(f'{side} 应为 1.5 pt 单线')
+        if not _matches_rule(borders.find(W + side), ('12', '8')):
+            problems.append(f'{side} 应为 1.0–1.5 pt 单线')
     for side in ('left', 'right', 'start', 'end', 'insideV', 'insideH'):
         if _border_visible(borders.find(W + side)):
             problems.append(f'{side} 存在额外边框')
     rows = table.findall(W + 'tr')
     if not rows:
-        return problems + ['表格缺少可核验的行'], False
+        return problems + ['表格缺少可核验的行'], warnings, False
     header_count = 0
     for row in rows:
         if not _on(row.find(f'./{W}trPr/{W}tblHeader')):
             break
         header_count += 1
     if not header_count:
-        problems.append('首行未标记为可重复表头')
+        if len(rows) > 5:
+            problems.append('首行未标记为可重复表头')
+        else:
+            warnings.append('首行未标记为可重复表头（跨页时建议勾选“在各页顶端重复出现”）')
         header_count = 1
     for index, row in enumerate(rows):
         if row.find(f'./{W}tblPrEx/{W}tblBorders') is not None:
             problems.append(f'第 {index + 1} 行存在表级边框例外，须人工确认')
         for cell in row.findall(W + 'tc'):
             cell_borders = cell.find(f'./{W}tcPr/{W}tcBorders')
+            span_el = cell.find(f'./{W}tcPr/{W}gridSpan')
+            span_raw = span_el.get(W + 'val', '1') if span_el is not None else '1'
+            has_span = span_raw.isdigit() and int(span_raw) > 1
             if index == header_count - 1:
                 bottom = cell_borders.find(W + 'bottom') if cell_borders is not None else None
-                if not _matches_rule(bottom, '6'):
-                    problems.append('表头分隔线应为 0.75 pt 单线')
+                if not _matches_rule(bottom, ('6', '4')):
+                    problems.append('表头分隔线应为 0.5–0.75 pt 单线')
             if cell_borders is None:
                 continue
             for border in cell_borders:
                 if not _border_visible(border):
                     continue
                 side = _tag_local(border)
-                allowed = (side == 'bottom' and index == header_count - 1
-                           or side == 'top' and index == 0 and _matches_rule(border, '12')
-                           or side == 'bottom' and index == len(rows) - 1 and _matches_rule(border, '12')
-                           or side == 'top' and index == header_count and _matches_rule(border, '6'))
+                allowed = (
+                    side == 'bottom' and index == header_count - 1
+                    or side == 'bottom' and index < header_count - 1 and has_span and _matches_rule(border, ('6', '4'))
+                    or side == 'top' and index == 0 and _matches_rule(border, ('12', '8'))
+                    or side == 'bottom' and index == len(rows) - 1 and _matches_rule(border, ('12', '8'))
+                    or side == 'top' and index == header_count and _matches_rule(border, ('6', '4'))
+                )
                 if not allowed:
                     problems.append(f'第 {index + 1} 行单元格存在额外 {side} 边框')
-    return list(dict.fromkeys(problems)), False
+    return list(dict.fromkeys(problems)), list(dict.fromkeys(warnings)), False
 
 
 def _nature_author_title(runs, paragraph, styles) -> list[str]:
@@ -387,10 +630,11 @@ def _nature_author_title(runs, paragraph, styles) -> list[str]:
 
 
 class StyleResolver:
-    def __init__(self, styles_root: ET.Element | None) -> None:
+    def __init__(self, styles_root: ET.Element | None, theme_root: ET.Element | None = None) -> None:
         self.styles: dict[str, ET.Element] = {}
         self.default_paragraph_style: str | None = None
         self.default_vertical_alignment: str | None = None
+        self.theme_fonts = _load_theme_fonts(theme_root)
         self.default_fonts: dict[str, str] = {}
         self.default_p_jc: str = "left"
         if styles_root is None:
@@ -400,16 +644,43 @@ class StyleResolver:
             self.default_vertical_alignment = va.get(W + 'val')
         rdef = styles_root.find(f"./{W}docDefaults/{W}rPrDefault/{W}rPr/{W}rFonts")
         if rdef is not None:
-            for k in ("ascii", "eastAsia", "hAnsi", "cs"):
-                v = rdef.get(f"{W}{k}")
-                if v:
-                    self.default_fonts[k] = v
+            self._apply_rfonts(rdef, self.default_fonts)
         for st in styles_root.findall(f"./{W}style"):
             sid = st.get(f"{W}styleId")
             if sid:
                 self.styles[sid] = st
                 if st.get(W + 'type') == 'paragraph' and st.get(W + 'default') in ('1', 'true', 'on'):
                     self.default_paragraph_style = sid
+
+    def _resolve_theme_font(self, theme_name: str | None) -> str | None:
+        if not theme_name:
+            return None
+        if theme_name in self.theme_fonts:
+            return self.theme_fonts[theme_name]
+        if theme_name.endswith('HAnsi') or theme_name.endswith('Ascii'):
+            role = 'major' if theme_name.startswith('major') else 'minor'
+            return self.theme_fonts.get(f'{role}HAnsi')
+        if 'EastAsia' in theme_name:
+            role = 'major' if theme_name.startswith('major') else 'minor'
+            return self.theme_fonts.get(f'{role}EastAsia')
+        return None
+
+    def _apply_rfonts(self, rf: ET.Element, target: dict[str, str]) -> None:
+        for attr, theme_attrs in (
+            ('ascii', ('asciiTheme',)),
+            ('hAnsi', ('hAnsiTheme',)),
+            ('eastAsia', ('eastAsiaTheme',)),
+            ('cs', ('cstheme', 'csTheme')),
+        ):
+            explicit = rf.get(f"{W}{attr}")
+            if explicit:
+                target[attr] = explicit
+            else:
+                for ta in theme_attrs:
+                    tv = self._resolve_theme_font(rf.get(f"{W}{ta}"))
+                    if tv:
+                        target[attr] = tv
+                        break
 
     def _chain(self, sid: str | None) -> list[ET.Element]:
         out: list[ET.Element] = []
@@ -424,9 +695,13 @@ class StyleResolver:
         out.reverse()
         return out
 
+    def _r_chain(self, r: ET.Element) -> list[ET.Element]:
+        rs = r.find(f"./{W}rPr/{W}rStyle")
+        return self._chain(rs.get(f"{W}val")) if rs is not None else []
+
     def effective_jc(self, p: ET.Element) -> str:
         jc = self.default_p_jc
-        for st in self._chain(_p_style(p)):
+        for st in self._chain(_p_style(p) or self.default_paragraph_style):
             el = st.find(f"./{W}pPr/{W}jc")
             if el is not None and el.get(f"{W}val"):
                 jc = el.get(f"{W}val", jc)
@@ -437,7 +712,7 @@ class StyleResolver:
 
     def effective_spacing(self, p: ET.Element) -> dict[str, str]:
         sp: dict[str, str] = {}
-        for st in self._chain(_p_style(p)):
+        for st in self._chain(_p_style(p) or self.default_paragraph_style):
             el = st.find(f"./{W}pPr/{W}spacing")
             if el is not None:
                 for k in ("line", "lineRule", "before", "after"):
@@ -452,45 +727,115 @@ class StyleResolver:
                     sp[k] = v
         return sp
 
+    def effective_ind(self, p: ET.Element) -> dict[str, str]:
+        ind: dict[str, str] = {}
+        for st in self._chain(_p_style(p) or self.default_paragraph_style):
+            el = st.find(f"./{W}pPr/{W}ind")
+            if el is not None:
+                for k in ("firstLine", "firstLineChars", "left", "hanging"):
+                    v = el.get(f"{W}{k}")
+                    if v is not None:
+                        ind[k] = v
+        el = p.find(f"./{W}pPr/{W}ind")
+        if el is not None:
+            for k in ("firstLine", "firstLineChars", "left", "hanging"):
+                v = el.get(f"{W}{k}")
+                if v is not None:
+                    ind[k] = v
+        return ind
+
     def effective_bold(self, r: ET.Element, p: ET.Element | None = None) -> bool:
         val = False
+        nodes = []
         if p is not None:
-            for st in self._chain(_p_style(p)):
-                rpr = st.find(f"./{W}rPr")
-                if rpr is not None and rpr.find(f"./{W}b") is not None:
-                    b = rpr.find(f"./{W}b")
-                    val = b.get(f"{W}val", "1") not in ("0", "false")
-        rpr = r.find(f"./{W}rPr")
-        if rpr is not None and rpr.find(f"./{W}b") is not None:
-            b = rpr.find(f"{W}b")
-            val = b.get(f"{W}val", "1") not in ("0", "false")
+            nodes.extend(self._chain(_p_style(p) or self.default_paragraph_style))
+        nodes.extend(self._r_chain(r))
+        nodes.append(r)
+        for node in nodes:
+            rpr = node.find(f"./{W}rPr")
+            if rpr is not None and rpr.find(f"./{W}b") is not None:
+                b = rpr.find(f"./{W}b")
+                val = b.get(f"{W}val", "1") not in ("0", "false", "off")
         return val
 
     def effective_italic(self, r: ET.Element, p: ET.Element | None = None) -> bool:
         val = False
+        nodes = []
         if p is not None:
-            for st in self._chain(_p_style(p)):
-                rpr = st.find(f"./{W}rPr")
-                if rpr is not None and rpr.find(f"./{W}i") is not None:
-                    i = rpr.find(f"./{W}i")
-                    val = i.get(f"{W}val", "1") not in ("0", "false")
-        rpr = r.find(f"./{W}rPr")
-        if rpr is not None and rpr.find(f"./{W}i") is not None:
-            i = rpr.find(f"./{W}i")
-            val = i.get(f"{W}val", "1") not in ("0", "false")
+            nodes.extend(self._chain(_p_style(p) or self.default_paragraph_style))
+        nodes.extend(self._r_chain(r))
+        nodes.append(r)
+        for node in nodes:
+            rpr = node.find(f"./{W}rPr")
+            if rpr is not None and rpr.find(f"./{W}i") is not None:
+                i = rpr.find(f"./{W}i")
+                val = i.get(f"{W}val", "1") not in ("0", "false", "off")
         return val
 
     def effective_ascii_font(self, r: ET.Element, p: ET.Element | None = None) -> str:
-        font = self.default_fonts.get("ascii", "Times New Roman")
+        resolved = dict(self.default_fonts)
         if p is not None:
-            for st in self._chain(_p_style(p)):
+            for st in self._chain(_p_style(p) or self.default_paragraph_style):
                 rf = st.find(f"./{W}rPr/{W}rFonts")
                 if rf is not None:
-                    font = rf.get(f"{W}ascii") or rf.get(f"{W}hAnsi") or font
+                    self._apply_rfonts(rf, resolved)
+        for st in self._r_chain(r):
+            rf = st.find(f"./{W}rPr/{W}rFonts")
+            if rf is not None:
+                self._apply_rfonts(rf, resolved)
         rf = r.find(f"./{W}rPr/{W}rFonts")
         if rf is not None:
-            font = rf.get(f"{W}ascii") or rf.get(f"{W}hAnsi") or font
-        return font
+            self._apply_rfonts(rf, resolved)
+        return resolved.get("ascii") or resolved.get("hAnsi") or ""
+
+    def effective_eastasia_font(self, r: ET.Element, p: ET.Element | None = None) -> str | None:
+        resolved = dict(self.default_fonts)
+        if p is not None:
+            for st in self._chain(_p_style(p) or self.default_paragraph_style):
+                rf = st.find(f"./{W}rPr/{W}rFonts")
+                if rf is not None:
+                    self._apply_rfonts(rf, resolved)
+        for st in self._r_chain(r):
+            rf = st.find(f"./{W}rPr/{W}rFonts")
+            if rf is not None:
+                self._apply_rfonts(rf, resolved)
+        rf = r.find(f"./{W}rPr/{W}rFonts")
+        if rf is not None:
+            self._apply_rfonts(rf, resolved)
+        return resolved.get("eastAsia")
+
+
+def _para_num_info(p: ET.Element, styles: StyleResolver, numbering: tuple[dict[str, str], dict[tuple[str, str], tuple[str, str]]]) -> tuple[str, str, str] | None:
+    num_to_abs, levels = numbering
+    num_id = ilvl = None
+    for st in styles._chain(_p_style(p) or styles.default_paragraph_style):
+        np = st.find(f"./{W}pPr/{W}numPr")
+        if np is not None:
+            ni = np.find(W + 'numId')
+            il = np.find(W + 'ilvl')
+            if ni is not None and ni.get(W + 'val'):
+                num_id = ni.get(W + 'val')
+            if il is not None and il.get(W + 'val'):
+                ilvl = il.get(W + 'val')
+    np = p.find(f"./{W}pPr/{W}numPr")
+    if np is not None:
+        ni = np.find(W + 'numId')
+        il = np.find(W + 'ilvl')
+        if ni is not None and ni.get(W + 'val'):
+            num_id = ni.get(W + 'val')
+        if il is not None and il.get(W + 'val'):
+            ilvl = il.get(W + 'val')
+    if not num_id or num_id == '0':
+        return None
+    abs_id = num_to_abs.get(num_id)
+    if not abs_id:
+        return None
+    lvl_text, suff = levels.get((abs_id, ilvl or '0'), ('', 'tab'))
+    return num_id, lvl_text, suff
+
+
+def _is_front_title(txt: str) -> bool:
+    return bool(re.match(r"^(?:摘\s*要|中文摘要|abstract|目\s*录|contents|版权.*声明|致\s*谢|个人简历|附\s*录|参考\s*文献)\b", txt.strip(), re.I))
 
 
 def _is_super_run(r: ET.Element) -> bool:
@@ -520,6 +865,17 @@ def _expand_num_spec(spec: str) -> list[int]:
     return nums
 
 
+def _is_non_citation_bracket(raw_spec: str) -> bool:
+    norm = raw_spec.strip().replace("，", ",")
+    if "," in norm:
+        parts = [p.strip() for p in norm.split(",") if p.strip()]
+        if parts == ["0", "1"]:
+            return True
+    if re.fullmatch(r"(?:19|20)\d{2}", norm):
+        return True
+    return False
+
+
 def _detect_mode(all_text: str, explicit: str) -> str:
     if explicit != "auto":
         return explicit
@@ -535,33 +891,50 @@ def _detect_mode(all_text: str, explicit: str) -> str:
     return "phd-thesis"
 
 
-def _extract_runs_skip_toc_fields(p: ET.Element) -> list[ET.Element]:
+def _extract_runs_skip_toc_fields(p: ET.Element, field_depth: int = 0) -> tuple[list[ET.Element], int]:
     out: list[ET.Element] = []
-    in_field = False
+    depth = field_depth
     for child in list(p):
         tag = _tag_local(child)
-        if tag == "hyperlink":
+        if tag == "hyperlink" and depth == 0:
             out.extend(list(child.findall(f"./{W}r")))
         elif tag == "r":
             fc = child.find(f"./{W}fldChar")
             if fc is not None:
                 ft = fc.get(f"{W}fldCharType")
                 if ft == "begin":
-                    in_field = True
-                elif ft == "end":
-                    in_field = False
-            elif not in_field:
+                    depth += 1
+                elif ft == "end" and depth > 0:
+                    depth -= 1
+            elif depth == 0:
                 out.append(child)
-    return out
+    return out, depth
+
+
+def _caption_runs(p: ET.Element) -> list[ET.Element]:
+    runs: list[ET.Element] = []
+    for child in list(p):
+        tag = _tag_local(child)
+        if tag == "r" and _r_text(child):
+            runs.append(child)
+        elif tag == "fldSimple":
+            for r in child.findall(f"./{W}r"):
+                if _r_text(r):
+                    runs.append(r)
+    return runs
 
 
 def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
+    if not str(args.docx or "").strip():
+        raise ValueError("--docx path cannot be empty")
     docx_path = pathlib.Path(args.docx).resolve()
-    if not docx_path.exists():
+    if not docx_path.is_file():
         raise FileNotFoundError(f"DOCX not found: {docx_path}")
 
     preset = load_effective_preset(args.preset, args.profile_config, None, None, args.citation_style)
     citation_style = preset.get("citation_style", "nature")
+    if citation_style not in ("nature", "gb7714"):
+        raise ValueError(f"Unsupported citation_style {citation_style!r}; expected 'nature' or 'gb7714'")
     template = _template_snapshot(args.template) if args.template else None
     typography = preset.get('typography', {})
 
@@ -677,11 +1050,12 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 )
             )
 
-        styles = StyleResolver(parsed.get("word/styles.xml"))
+        styles = StyleResolver(parsed.get("word/styles.xml"), parsed.get("word/theme/theme1.xml"))
+        numbering_defs = _load_numbering(parsed.get("word/numbering.xml"))
         body = doc_root.find(f"./{W}body")
         assert body is not None
         results.extend(_direct_format_checks(preset.get('audit', {}), styles, body))
-        blocks = list(body)
+        blocks = list(_iter_story_blocks(body))
         all_paras = list(body.iter(f"{W}p"))
         body_paras = [el for el in blocks if el.tag == f"{W}p"]
         all_text = "\n".join(_p_text(p) for p in all_paras)
@@ -711,19 +1085,58 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         exp_dims['w'] = exp_dims.pop('width_dxa')
         exp_dims['h'] = exp_dims.pop('height_dxa')
         exp_dims['orient'] = 'portrait' if exp_dims['w'] <= exp_dims['h'] else 'landscape'
-        sect_prs = list(doc_root.iter(f"{W}sectPr"))
+        sect_prs = _live_sections(doc_root)
+        draft_geom = [_section_geometry(sp) for sp in sect_prs]
+        numbering = _section_numbering(sect_prs, parsed, rels_map)
+        draft_sec_meta = _section_meta(draft_geom, numbering)
         margin_issues: list[str] = []
-        if template and len(sect_prs) != len(template['geometry']):
-            margin_issues.append(f"分节数 {len(sect_prs)} 与模板 {len(template['geometry'])} 不同")
-        expected = template['geometry'] if template else [exp_dims] * len(sect_prs)
-        for s_idx, (sp, dimensions) in enumerate(zip(sect_prs, expected), 1):
-            for attr, actual in _section_geometry(sp).items():
-                want = dimensions[attr]
-                if actual == want:
-                    continue
-                if template or not isinstance(actual, int) or not isinstance(want, int) or abs(actual - want) > 25:
-                    unit = '' if attr == 'orient' else ' dxa'
-                    margin_issues.append(f"Section {s_idx}: {attr}={actual}{unit} (期望 {want})")
+        sec_mappings: list[dict] = []
+
+        if template and sect_prs:
+            sec_mappings = align_section_indices(draft_sec_meta, template['section_meta'])
+            if len(sect_prs) != len(template['geometry']):
+                used_t_indices = {m['template_idx'] for m in sec_mappings}
+                required_roles = {
+                    i for i, tm in enumerate(template['section_meta'])
+                    if tm['fmt'] in ('upperRoman', 'lowerRoman') or (tm['fmt'] == 'decimal' and tm['has_page'])
+                }
+                if len(sect_prs) < len(template['geometry']) or not required_roles.issubset(used_t_indices):
+                    margin_issues.append(f"分节数 {len(sect_prs)} 与模板 {len(template['geometry'])} 不兼容")
+            for item in sec_mappings:
+                s_idx = item['draft_idx'] + 1
+                ti = item['template_idx']
+                actual_geom = draft_geom[item['draft_idx']]
+                dimensions = dict(template['geometry'][ti])
+                if item['preserve_landscape']:
+                    tw, th = dimensions.get('w'), dimensions.get('h')
+                    if isinstance(tw, int) and isinstance(th, int):
+                        dimensions['w'] = max(tw, th)
+                        dimensions['h'] = min(tw, th)
+                    dimensions['orient'] = 'landscape'
+                for attr, actual in actual_geom.items():
+                    want = dimensions[attr]
+                    if attr == 'gutter' and (actual or 0) == (want or 0):
+                        continue
+                    if actual == want:
+                        continue
+                    unit_note = '' if attr == 'orient' else f" ({_fmt_dxa(actual)} vs 期望 {_fmt_dxa(want)})"
+                    margin_issues.append(f"第 {s_idx} 节: {attr}={actual} (期望 {want}){unit_note}")
+        elif sect_prs:
+            for s_idx, actual_geom in enumerate(draft_geom, 1):
+                target_dims = dict(exp_dims)
+                if s_idx > 1 and actual_geom.get('orient') == 'landscape' and (
+                    actual_geom.get('w'), actual_geom.get('h')
+                ) == (exp_dims['h'], exp_dims['w']):
+                    target_dims['w'], target_dims['h'] = exp_dims['h'], exp_dims['w']
+                    target_dims['orient'] = 'landscape'
+                for attr, actual in actual_geom.items():
+                    want = target_dims[attr]
+                    if attr == 'gutter' and (actual or 0) == (want or 0):
+                        continue
+                    if actual == want:
+                        continue
+                    if not isinstance(actual, int) or not isinstance(want, int) or abs(actual - want) > 25:
+                        margin_issues.append(f"第 {s_idx} 节: {attr}={_fmt_dxa(actual)} (期望 {_fmt_dxa(want)})")
         if not sect_prs:
             margin_issues.append('缺少页面设置分节')
 
@@ -732,18 +1145,58 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 "Layout-1",
                 "排版-1(纸张与页边距)",
                 "PASS" if (sect_prs and not margin_issues) else "FAIL",
-                f"全部 {len(sect_prs)} 节页面设置符合{'模板' if template else '当前预设'}" if not margin_issues else f"发现 {len(margin_issues)} 处页面偏差",
-                margin_issues[:10],
+                (
+                    f"全部 {len(sect_prs)} 节页面设置符合{'模板' if template else '当前预设'}"
+                    if not margin_issues
+                    else f"发现 {len(margin_issues)} 处页面偏差"
+                ),
+                margin_issues[:12],
             )
         )
 
         # 3-section & header isolation
         sec_issues: list[str] = []
-        numbering = _section_numbering(sect_prs, parsed, rels_map)
         sec_descs = [f'S{i}({fmt}@{start or "续编"}, PAGE={",".join(active) or "-"})'
                      for i, (fmt, start, _, _, active, _) in enumerate(numbering, 1)]
         if template:
-            if numbering != template['numbering']:
+            if _direct_equal_length_compatible(draft_sec_meta, template['section_meta']):
+                for s_idx, (got, exp) in enumerate(zip(numbering, template['numbering']), 1):
+                    if got != exp:
+                        for label, g_val, e_val in (
+                            ('页码格式', got[0], exp[0]),
+                            ('起始页码', got[1] or '续编', exp[1] or '续编'),
+                            ('分节起始方式', got[2], exp[2]),
+                            ('首页不同', got[3], exp[3]),
+                            ('页脚PAGE域', got[4], exp[4]),
+                            ('页眉类型', got[5], exp[5]),
+                        ):
+                            if g_val != e_val:
+                                sec_issues.append(f"第 {s_idx} 节 {label}: 实际 {g_val} ≠ 模板 {e_val}")
+            elif sec_mappings:
+                for item in sec_mappings:
+                    di, ti = item['draft_idx'], item['template_idx']
+                    got, exp = numbering[di], template['numbering'][ti]
+                    s_idx = di + 1
+                    if got[0] != exp[0]:
+                        sec_issues.append(f"第 {s_idx} 节 页码格式: 实际 {got[0]} ≠ 模板 {exp[0]}")
+                    exp_start = (
+                        exp[1]
+                        if (item['role'] == 'roman_front' or (item['role'] == 'decimal_body' and item['is_first_body']))
+                        else None
+                    )
+                    if item['role'] == 'landscape_island' and got[1] is not None:
+                        sec_issues.append(f"第 {s_idx} 节（横向宽表节）不应重新起编页码 (start={got[1]})")
+                    elif item['role'] != 'landscape_island' and got[1] != exp_start:
+                        sec_issues.append(f"第 {s_idx} 节 起始页码: 实际 {got[1] or '续编'} ≠ 模板 {exp_start or '续编'}")
+                    if got[2] != exp[2]:
+                        sec_issues.append(f"第 {s_idx} 节 分节起始方式: 实际 {got[2]} ≠ 模板 {exp[2]}")
+                    if item['role'] != 'landscape_island' and got[3] != exp[3]:
+                        sec_issues.append(f"第 {s_idx} 节 首页不同: 实际 {got[3]} ≠ 模板 {exp[3]}")
+                    if bool(got[4]) != bool(exp[4]):
+                        sec_issues.append(f"第 {s_idx} 节 页脚PAGE域: 实际 {got[4]} ≠ 模板 {exp[4]}")
+                    if bool(got[5]) != bool(exp[5]):
+                        sec_issues.append(f"第 {s_idx} 节 页眉类型: 实际 {got[5]} ≠ 模板 {exp[5]}")
+            else:
                 sec_issues.append('分节起始方式、首页设置、页眉类型、页码格式或页码域与模板不同')
             actual_styles = _style_properties(parsed.get('word/styles.xml'))
             changed = [key for key, props in template['style_props'].items() if actual_styles.get(key) != props]
@@ -752,21 +1205,28 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         elif len(sect_prs) < 3:
             sec_issues.append(f"仅发现 {len(sect_prs)} 节；规范应至少分 3 节（封面无页码 / 摘要目录罗马 / 正文阿拉伯）")
         else:
-            s1_hdrs = sect_prs[0].findall(f"./{W}headerReference")
-            if s1_hdrs:
-                s1_t = []
-                for hr in s1_hdrs:
+            roman_idx = next((i for i, row in enumerate(numbering) if row[0] in ('upperRoman', 'lowerRoman')), None)
+            dec_idx = next(
+                (i for i, row in enumerate(numbering)
+                 if row[0] == 'decimal' and row[1] == '1' and row[4] and (roman_idx is None or i > roman_idx)),
+                None,
+            )
+            front_end = roman_idx if roman_idx is not None else 1
+            for fi in range(front_end):
+                for hr in sect_prs[fi].findall(f"./{W}headerReference"):
                     tgt = rels_map.get(hr.get(f"{R}id", ""), "")
-                    if tgt in parsed:
-                        s1_t.append("".join(t.text or "" for t in parsed[tgt].iter(f"{W}t")).strip())
-                if any(s1_t):
-                    sec_issues.append("Section 1（封面/声明）不应显示页眉文字")
-            if numbering[0][4]:
-                sec_issues.append('封面/声明节的页脚包含 PAGE 页码域')
-            if numbering[1][:2] != ('upperRoman', '1') or not numbering[1][4]:
+                    if tgt in parsed and "".join(t.text or "" for t in parsed[tgt].iter(f"{W}t")).strip():
+                        sec_issues.append(f"第 {fi + 1} 节（封面/声明）不应显示页眉文字")
+                if numbering[fi][4]:
+                    sec_issues.append(f"第 {fi + 1} 节（封面/声明）的页脚包含 PAGE 页码域")
+            if roman_idx is None or roman_idx == 0 or numbering[roman_idx][:2] != ('upperRoman', '1') or not numbering[roman_idx][4]:
                 sec_issues.append('摘要/目录节应从大写罗马 I 起编，并使用 PAGE 页码域')
-            if numbering[2][:2] != ('decimal', '1') or not numbering[2][4]:
+            if dec_idx is None or (roman_idx is not None and dec_idx <= roman_idx):
                 sec_issues.append("正文起始/主体节缺少显式 pgNumType/@w:start='1' 的阿拉伯数字页码")
+            else:
+                for tail_i in range(dec_idx + 1, len(numbering)):
+                    if numbering[tail_i][1] == '1':
+                        sec_issues.append(f"第 {tail_i + 1} 节正文续节不应重复设置 start='1' 导致页码重置")
         results.append(
             CheckResult(
                 "Layout-SecNum",
@@ -814,15 +1274,20 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         body_spacing = str(round(20 * float(typography.get('body_line_pt', 20))))
         latin_fonts = {typography.get('latin_font', 'Times New Roman').casefold(), 'arial'}
         body_checked = 0
+        field_depth = 0
         for p in body_paras:
             ps = _p_style(p)
             txt = _p_text(p).strip()
+            runs_outside_fields, field_depth = _extract_runs_skip_toc_fields(p, field_depth)
             if not txt:
                 continue
+            num_info = _para_num_info(p, styles, numbering_defs)
             if ps in (CH1_STYLES | H2_STYLES | H3_STYLES | H4_STYLES):
                 m_h = re.match(r"^(第[一二三四五六七八九十\d]+章|\d+(?:\.\d+){1,3})([\s\u3000]*)(.+)$", txt)
                 if m_h and m_h.group(2) != " ":
                     heading_space_issues.append(f"标题序号空格非单半角: {txt[:35]!r}")
+                elif m_h is None and num_info is not None and num_info[2] == 'nothing' and not _p_text(p).startswith(" "):
+                    heading_space_issues.append(f"自动编号标题后缺少间距 ({num_info[1]}): {txt[:35]!r}")
             if ps in (BODY_STYLES | ABS_ZH_STYLES | ABS_EN_STYLES | FIG_CAP_STYLES | BIB_STYLES):
                 jc = styles.effective_jc(p)
                 if jc != "both" and "签字" not in txt and "签名" not in txt and "声明" not in txt and not txt.startswith("在学期间"):
@@ -833,14 +1298,15 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 if (space.get('line'), space.get('lineRule')) != (body_spacing, 'exact'):
                     spacing_issues.append(f'{ps}: {space.get("line")}/{space.get("lineRule")}，期望 {body_spacing}/exact: {txt[:30]}')
             if ps in (CH1_STYLES | H2_STYLES | H3_STYLES | H4_STYLES | BODY_STYLES | ABS_ZH_STYLES | ABS_EN_STYLES | FIG_CAP_STYLES | TBL_TITLE_STYLES | TBL_NOTE_STYLES | BIB_STYLES):
-                for r in _extract_runs_skip_toc_fields(p):
+                for r in runs_outside_fields:
                     rt = _r_text(r)
                     if not rt or rt.isspace() or "【" in rt:
                         continue
                     if re.search(r"[A-Za-z0-9α-ωΑ-Ωμµ°]", rt):
-                        af = styles.effective_ascii_font(r, p).lower()
-                        if af not in latin_fonts:
-                            font_issues.append(f"英文字体不在当前允许字体中 ({af}): {rt[:30]!r} @ {ps}")
+                        af_raw = styles.effective_ascii_font(r, p)
+                        af = af_raw.lower()
+                        if not af or af not in latin_fonts:
+                            font_issues.append(f"英文字体未设或不在当前允许字体中 ({af_raw or '未设'}): {rt[:30]!r} @ {ps}")
 
         results.append(CheckResult("Err-9", "常见错误-9(标题序号与标题间单半角空格)", "PASS" if not heading_space_issues else "FAIL", "各级标题序号后空格符合单半角空格要求" if not heading_space_issues else f"发现 {len(heading_space_issues)} 处标题空格异常", heading_space_issues[:10]))
         results.append(CheckResult("Layout-9", "排版-9(正文/摘要/图注/参考文献两端对齐)", "PASS" if not align_issues else "FAIL", "全部核查段落均设为两端对齐" if not align_issues else f"发现 {len(align_issues)} 处未两端对齐", align_issues[:10]))
@@ -849,10 +1315,22 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                                    'FAIL' if spacing_issues else 'PASS' if body_checked else 'INFO',
                                    f'正文命中已知样式 {body_checked} 段，固定行距偏差 {len(spacing_issues)} 段', spacing_issues[:12]))
 
-        # Locate chapter 1 -> references -> back matter boundaries
-        ch1_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.match(r"^(?:第一章|Chapter\s+1)\b", _p_text(el).strip(), re.I)), None)
-        ref_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.fullmatch(r"参考\s*文献|References|Bibliography|Works Cited", _p_text(el).strip(), re.I)), None)
-        cv_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and _p_text(el).strip().startswith(("个人简历", "附 录", "附录", "致 谢", "致谢"))), None)
+        # Locate chapter 1 -> references -> back matter boundaries (literal or Word auto-numbering; exclude TOC entries)
+        ch1_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and not _is_toc_para(el) and re.match(r"^(?:第一章|Chapter\s+1)\b", _p_text(el).strip(), re.I)), None)
+        if ch1_idx is None:
+            for i, el in enumerate(blocks):
+                if el.tag != f"{W}p" or _is_toc_para(el):
+                    continue
+                ps = _p_style(el)
+                txt = _p_text(el).strip()
+                if not txt or _is_front_title(txt):
+                    continue
+                ninfo = _para_num_info(el, styles, numbering_defs)
+                if (ps in CH1_STYLES and ninfo is not None) or (ninfo is not None and ("第" in ninfo[1] and "章" in ninfo[1] or "Chapter" in ninfo[1])):
+                    ch1_idx = i
+                    break
+        ref_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and not _is_toc_para(el) and re.fullmatch(r"参考\s*文献|References|Bibliography|Works Cited", _p_text(el).strip(), re.I)), None)
+        cv_idx = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and not _is_toc_para(el) and _p_text(el).strip().replace("\u3000", "").replace(" ", "").startswith(("个人简历", "作者简历", "作者简介", "附录", "致谢"))), None)
         body_start = ch1_idx or 0
         body_end = ref_idx or len(blocks)
 
@@ -872,11 +1350,11 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
             txt = _p_text(p).strip()
             if not txt:
                 continue
-            mf = re.match(r"^(?:图|补充图)\s*([1-9A-D])\.(\d+)\s+(.+)$", txt)
-            if mf and (ps in FIG_CAP_STYLES or re.match(r"^(?:图|补充图)\s*[1-9A-D]\.\d+\s+\S+", txt)) and len(txt) < 1200:
+            mf = re.match(r"^(?:图|补充图)\s*([1-9]\d*|[A-D])[.\-](\d+)\s+(.+)$", txt)
+            if mf and (ps in FIG_CAP_STYLES or re.match(r"^(?:图|补充图)\s*(?:[1-9]\d*|[A-D])[.\-]\d+\s+\S+", txt)) and len(txt) < 1200:
                 ch, num = mf.group(1), int(mf.group(2))
                 fig_captions.append((ch, num, p))
-                runs = p.findall(f"./{W}r")
+                runs = _caption_runs(p)
                 if runs and not styles.effective_bold(runs[0], p):
                     caption_bold_issues.append(f"图 {ch}.{num} 题名首段未加粗")
                 if len(runs) > 1 and styles.effective_bold(runs[-1], p) and len(txt) > 35:
@@ -888,12 +1366,12 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 if "修改自" in txt and not re.search(r"修改自[^。]+。?$", txt):
                     adapted_fig_issues.append(f"图 {ch}.{num} 改编图“修改自…”须置于图注最末尾")
 
-            mt = re.match(r"^(?:表|附表)\s*([1-9A-D])\.(\d+)\s+(.+)$", txt)
+            mt = re.match(r"^(?:表|附表)\s*([1-9]\d*|[A-D])[.\-](\d+)\s+(.+)$", txt)
             is_tbl_title = (ps in TBL_TITLE_STYLES) or (mt is not None and not re.search(r"[。；，]\s*$", txt) and "。" not in txt[:35] and len(txt) < 120)
             if mt and is_tbl_title:
                 ch, num = mt.group(1), int(mt.group(2))
                 tbl_captions.append((ch, num, p))
-                runs = p.findall(f"./{W}r")
+                runs = _caption_runs(p)
                 if runs and not styles.effective_bold(runs[0], p):
                     caption_bold_issues.append(f"表 {ch}.{num} 题名未加粗")
 
@@ -917,9 +1395,9 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
             if id(p) in cap_elem_set:
                 continue
             txt = _p_text(p)
-            for m in re.finditer(r"(?:图|补充图)\s*([1-9A-D])\.(\d+)", txt):
+            for m in re.finditer(r"(?:图|补充图)\s*([1-9]\d*|[A-D])[.\-](\d+)", txt):
                 fig_cite_set.add((m.group(1), int(m.group(2))))
-            for m in re.finditer(r"(?:表|附表)\s*([1-9A-D])\.(\d+)", txt):
+            for m in re.finditer(r"(?:表|附表)\s*([1-9]\d*|[A-D])[.\-](\d+)", txt):
                 tbl_cite_set.add((m.group(1), int(m.group(2))))
         closure_issues: list[str] = []
         if fig_cap_set - fig_cite_set:
@@ -941,17 +1419,33 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
             # The bundled starters use one dashed cell as a picture placeholder.
             # Keep real one-cell tables in scope when they contain other text.
             cells = tbl.findall(f"./{W}tr/{W}tc")
-            placeholder_labels = ('此处插入矢量科研图', '在此放置作品、资料或研究示意图。')
+            placeholder_labels = ('此处插入矢量科研图', '在此放置作品、资料或研究示意图', '在此放置高分辨率矢量科研图')
             if (len(cells) == 1 and top_b is not None and top_b.get(f"{W}val") == 'dashed'
                     and _p_text(tbl).lstrip('【[ ').startswith(placeholder_labels)):
                 continue
             content_tbl_count += 1
-            issues, needs_word = _table_problems(tbl)
-            (unresolved_tables if needs_word else bad_tables).extend(f'表 #{tidx}: {item}' for item in issues)
+            issues, warnings, needs_word = _table_problems(tbl)
+            if issues:
+                bad_tables.extend(f'表 #{tidx}: {item}' for item in issues)
+            if warnings or needs_word:
+                unresolved_tables.extend(f'表 #{tidx}: {item}' for item in warnings)
 
+        min_fig_pt = float(typography.get("figure_min_font_pt", 7.5))
+        fig_font_checked, fig_font_issues = _inspect_figure_font_sizes(main_blocks, zf, names, rels_map, min_fig_pt)
+        fig5_status = "FAIL" if fig_font_issues else ("PASS" if fig_font_checked else "INFO")
+        fig5_summary = (
+            f"检出 {len(fig_font_issues)} 处图内文字小于 6 号字 ({min_fig_pt:g} pt)"
+            if fig_font_issues
+            else (
+                f"已核查 {fig_font_checked} 处图内矢量文字，均不小于 6 号字 ({min_fig_pt:g} pt)"
+                if fig_font_checked
+                else f"未检出可机读矢量图文字，请在成稿 PDF 复核图内文字不小于 6 号字 ({min_fig_pt:g} pt)"
+            )
+        )
         results.append(CheckResult("Fig-1", "图表要求-1(按章连续编号)", "PASS" if not seq_issues else "FAIL", f"图={len(fig_captions)}, 表={len(tbl_captions)}", seq_issues))
         results.append(CheckResult("Fig-3-8", "图表要求-3/8(正文图表双向闭环)", "PASS" if not closure_issues else "FAIL", "全部图表与正文双向引用闭环" if not closure_issues else "存在未引用或悬空图表编号", closure_issues))
         results.append(CheckResult("Fig-4", "图表要求-4(图注/表题样式与局部加粗)", "PASS" if not caption_bold_issues else "FAIL", "图注与表题局部加粗规范" if not caption_bold_issues else f"发现 {len(caption_bold_issues)} 处标题加粗问题", caption_bold_issues[:10]))
+        results.append(CheckResult("Fig-5", "图表要求-5(图内文字不小于6号字)", fig5_status, fig5_summary, fig_font_issues[:10]))
         results.append(CheckResult("Fig-9-10", "图表要求-9/10(大写分图号与完整图注)", "PASS" if (not lower_panel_issues and not bare_caption_issues) else "FAIL", "分图号大写且图注说明完整" if (not lower_panel_issues and not bare_caption_issues) else "存在小写分图号或过短图注", (lower_panel_issues + bare_caption_issues)[:10]))
         results.append(CheckResult("Acad-2", "学术规范-2(改编图出处置图注末尾)", "PASS" if not adapted_fig_issues else "FAIL", "改编图规范检查通过" if not adapted_fig_issues else f"发现 {len(adapted_fig_issues)} 处改编图标注问题", adapted_fig_issues))
         table_status = 'FAIL' if bad_tables else 'WARN' if unresolved_tables else 'PASS' if content_tbl_count else 'INFO'
@@ -979,33 +1473,56 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                         cited_nums.add(int(m_b.group(1)))
             if citation_style == "nature":
                 runs = p.findall(f"./{W}r")
+                in_cwyw = False
+                prev_visible = ""
                 for ri, r in enumerate(runs):
-                    if _is_super_run(r):
-                        rt = (_r_text(r) or "").strip()
+                    fc = r.find(f"./{W}fldChar")
+                    instr = r.find(f"./{W}instrText")
+                    if instr is not None and "EN.CITE" in (instr.text or "").upper():
+                        in_cwyw = True
+                    if fc is not None:
+                        ft = fc.get(f"{W}fldCharType")
+                        if ft == "end":
+                            in_cwyw = False
+                        continue
+                    rt_raw = _r_text(r) or ""
+                    if _is_super_run(r) and not in_cwyw:
+                        rt = rt_raw.strip()
                         nums = _expand_num_spec(rt)
                         if nums and not re.match(r"^[\d,，\-–—~\s]+$", rt) and not rt.startswith("["):
                             nums = []
                         if nums:
                             cite_groups += 1
                             cited_nums.update(nums)
-                            prev_t = _r_text(runs[ri - 1]) if ri > 0 else ""
-                            if prev_t and prev_t[-1] in "。，；！？.,;!?" and ps not in TBL_NOTE_STYLES:
-                                bad_cite_place.append(f"标点后出现引用上标 {rt!r}: {prev_t[-15:]!r}")
-                if re.search(r"\[(\d+(?:[,\-–—]\d+)*)\]", txt) and "【" not in txt:
-                    bad_cite_place.append(f"Nature 模式出现方括号引用而非上标: {txt[:40]!r}")
+                            if prev_visible and prev_visible[-1] in "。，；！？.,;!?" and ps not in TBL_NOTE_STYLES:
+                                bad_cite_place.append(f"标点后出现引用上标 {rt!r}: {prev_visible[-15:]!r}")
+                    if rt_raw:
+                        prev_visible += rt_raw
+                for m_br in re.finditer(r"\[(\d+(?:[,\-–—]\d+)*)\]", txt):
+                    if "【" in txt or _is_non_citation_bracket(m_br.group(1)):
+                        continue
+                    bad_cite_place.append(f"Nature 模式出现方括号引用而非上标: {m_br.group(0)!r} in {txt[:40]!r}")
             else:  # gb7714
                 for m in re.finditer(r"\[(\d+(?:[,，\-–—]\d+)*)\]", txt):
+                    if _is_non_citation_bracket(m.group(1)):
+                        continue
                     nums = _expand_num_spec(m.group(1))
                     if nums:
                         cite_groups += 1
                         cited_nums.update(nums)
 
+        ref1_status = "FAIL" if bad_cite_place else ("WARN" if (cite_groups == 0 and ref_idx is None) else "PASS")
+        ref1_summary = (
+            f"正文识别 {cite_groups} 处引用组 ({citation_style})"
+            if ref1_status != "WARN"
+            else "正文未检出可识别引文且缺少标准参考文献标题，无法核验"
+        )
         results.append(
             CheckResult(
                 "Ref-1",
                 f"引用规范-1({'Nature上标置标点前' if citation_style == 'nature' else 'GB/T 7714方括号引用'})",
-                "PASS" if not bad_cite_place else "FAIL",
-                f"正文识别 {cite_groups} 处引用组 ({citation_style})" if not bad_cite_place else f"发现 {len(bad_cite_place)} 处引文格式/位置问题",
+                ref1_status,
+                ref1_summary,
                 bad_cite_place[:10],
             )
         )
@@ -1013,7 +1530,19 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         # Bibliography block
         ref_paras: list[ET.Element] = []
         if ref_idx is not None:
-            end_r = next((i for i in range(ref_idx + 1, len(blocks)) if blocks[i].tag == f"{W}p" and (_p_style(blocks[i]) in CH1_STYLES or re.match(r"^(个人简历|附\s*录|致\s*谢)", _p_text(blocks[i]).strip()))), len(blocks))
+            end_r = next(
+                (
+                    i
+                    for i in range(ref_idx + 1, len(blocks))
+                    if blocks[i].tag == f"{W}p"
+                    and not _is_toc_para(blocks[i])
+                    and (
+                        _p_style(blocks[i]) in CH1_STYLES
+                        or re.match(r"^(?:个人简历|作者简历|作者简介|附录|致谢)", _p_text(blocks[i]).strip().replace("\u3000", "").replace(" ", ""))
+                    )
+                ),
+                len(blocks),
+            )
             ref_paras = [el for el in blocks[ref_idx + 1 : end_r] if el.tag == f"{W}p" and _p_text(el).strip()]
 
         en_cite_count = sum('EN.CITE' in ''.join(el.text or '' for el in p.iter(W + 'instrText')).upper()
@@ -1050,7 +1579,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 ref_style_issues.append(f"文献 {rnum}: 行距={sp.get('line')}/{sp.get('lineRule')} 对齐={jc} (应为 exact {ref_line} / both)")
 
             # Duplicate check
-            norm_key = re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", rbody.lower())[:40]
+            norm_key = re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", rbody.lower())[:120]
             if norm_key in seen_titles:
                 dup_refs.append(f"文献 {rnum} 疑似与文献 {seen_titles[norm_key]} 重复")
             else:
@@ -1063,10 +1592,16 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                 ref_lang_order_issues.append(f"文献 {rnum}: 中文文献之后又出现英文文献（应先英后中）")
 
             if citation_style == "nature":
+                stripped_doi = DOI_RE.sub("", rbody).strip()
+                is_published_vol_page = bool(
+                    PUBLISHED_VOL_PAGE_RE.search(stripped_doi)
+                    or (re.search(r"\(\d{4}\)", stripped_doi) and re.search(r"\d+\s*[–-]\s*\d+", stripped_doi))
+                )
+                is_ahead_online = bool(DOI_RE.search(rbody) and not is_published_vol_page)
                 if not is_cjk_ref:
                     has_italic = any(styles.effective_italic(r, rp) for r in rp.findall(f"./{W}r") if (_r_text(r) or "").strip())
                     has_bold = any(styles.effective_bold(r, rp) for r in rp.findall(f"./{W}r") if (_r_text(r) or "").strip())
-                    if not has_italic or not has_bold:
+                    if not has_italic or (not is_ahead_online and not has_bold):
                         ref_fmt_issues.append(f"文献 {rnum} Nature 格式缺少刊名斜体({has_italic})或卷号加粗({has_bold})")
                     runs = rp.findall(f'./{W}r')
                     ref_fmt_issues.extend(f'文献 {rnum}: {issue}' for issue in _nature_author_title(runs, rp, styles))
@@ -1074,9 +1609,8 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                         ref_fmt_issues.append(f"文献 {rnum} 页码使用了短连字符 - 而不是 en-dash –")
                     if re.search(r"\(\d{4}\)\.$", rbody):
                         ref_fmt_issues.append(f"文献 {rnum} 年份括号后不应有多余句点")
-                if "doi:" in rbody.lower() or "doi.org/" in rbody.lower():
-                    if re.search(r"\(\d{4}\)", rbody) and re.search(r"\d+\s*[–-]\s*\d+", rbody):
-                        ref_fmt_issues.append(f"文献 {rnum} 已正式见刊（含卷期页码），请移除冗余 DOI")
+                if preset.get("audit", {}).get("forbid_published_doi", True) and DOI_RE.search(rbody) and not is_ahead_online:
+                    ref_fmt_issues.append(f"文献 {rnum} 已正式见刊（含卷期页码），除在线未见刊外请移除 DOI")
             else:  # gb7714
                 marker = re.search(r"\[(?:[A-Z]{1,2})(?:/(?:OL|CD|DK|MT))?\]", rbody)
                 if not marker:
@@ -1096,21 +1630,108 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         if cited_nums - expected_refs:
             ref_closure_issues.append(f"正文引用序号越界或文末缺录: {sorted(cited_nums - expected_refs)}")
 
-        results.append(CheckResult("Ref-2-7", f"引用规范-2..7({citation_style}格式/去DOI/序/去重)", "PASS" if not (ref_seq_issues or ref_fmt_issues or ref_lang_order_issues or dup_refs) else "FAIL", f"共核验 {len(ref_nums)} 条文献 (EN.CITE={en_cite_count})", (ref_seq_issues + ref_lang_order_issues + dup_refs + ref_fmt_issues)[:15]))
-        results.append(CheckResult("Ref-8", "引用规范-8(正文与参考文献双向闭环)", "PASS" if not ref_closure_issues else "FAIL", "全部文献引用双向闭环" if not ref_closure_issues else "存在未引或越界文献", ref_closure_issues))
-        results.append(CheckResult("Ref-9", "引用规范-9(参考文献固定16磅两端对齐)", "PASS" if not ref_style_issues else "FAIL", "全部文献段落符合固定 16 磅与两端对齐" if not ref_style_issues else f"发现 {len(ref_style_issues)} 处行距/对齐偏差", ref_style_issues[:10]))
+        ref_empty = not ref_nums and not cited_nums and en_cite_count == 0
+        ref2_has_fail = bool(ref_seq_issues or ref_fmt_issues or ref_lang_order_issues or dup_refs)
+        results.append(
+            CheckResult(
+                "Ref-2-7",
+                f"引用规范-2..7({citation_style}格式/去DOI/序/去重)",
+                "FAIL" if ref2_has_fail else ("WARN" if ref_empty else "PASS"),
+                "未检出文献条目或正文引文，无法核验文献格式" if (ref_empty and not ref2_has_fail) else f"共核验 {len(ref_nums)} 条文献 (EN.CITE={en_cite_count})",
+                (ref_seq_issues + ref_lang_order_issues + dup_refs + ref_fmt_issues)[:15]
+                or (["未找到标准参考文献节且正文未检出可识别引文"] if ref_empty else []),
+            )
+        )
+        results.append(
+            CheckResult(
+                "Ref-8",
+                "引用规范-8(正文与参考文献双向闭环)",
+                "FAIL" if ref_closure_issues else ("WARN" if ref_empty else "PASS"),
+                "未检出文献或引文，无法验证双向闭环" if (ref_empty and not ref_closure_issues) else ("全部文献引用双向闭环" if not ref_closure_issues else "存在未引或越界文献"),
+                ref_closure_issues or (["缺少参考文献或正文引文条目"] if ref_empty else []),
+            )
+        )
+        results.append(
+            CheckResult(
+                "Ref-9",
+                "引用规范-9(参考文献固定16磅两端对齐)",
+                "FAIL" if ref_style_issues else ("WARN" if ref_empty else "PASS"),
+                "未检出文献段落，无法核验文献行距与对齐" if (ref_empty and not ref_style_issues) else ("全部文献段落符合固定 16 磅与两端对齐" if not ref_style_issues else f"发现 {len(ref_style_issues)} 处行距/对齐偏差"),
+                ref_style_issues[:10] or (["缺少可核验的参考文献段落"] if ref_empty else []),
+            )
+        )
 
-        # 6. First-person pronouns & consistent self-term (Acad-14)
+        # 6. First-person pronouns & consistent self-term (Acad-14; exclude Acknowledgements, legal declarations, and CV entries)
         first_person_hits: list[str] = []
         self_terms: dict[str, int] = {}
-        legal_skip = ("本人郑重声明", "本人声明", "本人完全了解", "本人承诺", "未经作者授权", "版权与使用声明", "论文作者签名")
+        legal_skip = (
+            "本人郑重声明", "本人声明", "本人完全了解", "本人了解学校", "本人承诺",
+            "授权学校保存", "学位论文使用授权", "未经作者授权", "版权与使用声明", "论文作者签名",
+        )
+        ack_candidates = [
+            i for i, el in enumerate(blocks)
+            if el.tag == f"{W}p"
+            and not _is_toc_para(el)
+            and re.fullmatch(r"致[\s\u3000]*谢", _p_text(el).strip())
+        ]
+        ack_heading = ack_candidates[-1] if ack_candidates else None
+        ack_paras = set()
+        if ack_heading is not None:
+            ack_end = next(
+                (
+                    j for j in range(ack_heading + 1, len(blocks))
+                    if blocks[j].tag == f"{W}p"
+                    and (
+                        "独创性" in _p_text(blocks[j])
+                        or _p_text(blocks[j]).strip().replace("\u3000", "").replace(" ", "").startswith(("个人简历", "作者简历", "附录", "在学期间", "版权"))
+                        or (_p_style(blocks[j]) in CH1_STYLES and not re.fullmatch(r"致[\s\u3000]*谢", _p_text(blocks[j]).strip()))
+                    )
+                ),
+                len(blocks),
+            )
+            ack_paras = {id(p) for el in blocks[ack_heading:ack_end] for p in ([el] if el.tag == f"{W}p" else list(el.iter(f"{W}p")))}
+        cv_heading_idx = next(
+            (
+                i
+                for i, el in enumerate(blocks)
+                if el.tag == f"{W}p"
+                and not _is_toc_para(el)
+                and re.match(r"^(?:个人简历|作者简历|作者简介)", _p_text(el).strip().replace("\u3000", "").replace(" ", ""))
+            ),
+            None,
+        )
+        cv_paras_list: list[ET.Element] = []
+        cv_paras_ids: set[int] = set()
+        if cv_heading_idx is not None:
+            cv_end_idx = next(
+                (
+                    j
+                    for j in range(cv_heading_idx + 1, len(blocks))
+                    if blocks[j].tag == f"{W}p"
+                    and not _is_toc_para(blocks[j])
+                    and (
+                        _p_style(blocks[j]) in CH1_STYLES
+                        or re.match(r"^(?:附录|致谢|学位论文独创性)", _p_text(blocks[j]).strip().replace("\u3000", "").replace(" ", ""))
+                    )
+                ),
+                len(blocks),
+            )
+            cv_paras_list = [
+                p
+                for el in blocks[cv_heading_idx + 1 : cv_end_idx]
+                for p in ([el] if el.tag == f"{W}p" else list(el.iter(f"{W}p")))
+                if _p_text(p).strip()
+            ]
+            cv_paras_ids = {id(p) for p in cv_paras_list}
         for p in all_paras:
+            if id(p) in ack_paras or id(p) in cv_paras_ids:
+                continue
             ps = _p_style(p)
             t = _p_text(p).strip()
-            if not t or ps in BIB_STYLES or any(k in t for k in legal_skip):
+            if not t or ps in BIB_STYLES or any(k in t for k in legal_skip) or "不得出现“我" in t or "我如何如何" in t:
                 continue
-            if re.search(r"我们", t):
-                first_person_hits.append(f"我们@{t[:36]}")
+            for m_fp in FIRST_PERSON_RE.finditer(t):
+                first_person_hits.append(f"{m_fp.group(0)}@{t[:36]}")
             for term in ("本论文", "本研究", "本工作", "本课题"):
                 cnt = len(re.findall(term, t))
                 if cnt:
@@ -1118,10 +1739,45 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         self_status = "PASS" if (not first_person_hits and len(self_terms) <= 1) else "FAIL"
         results.append(CheckResult("Acad-14", "学术规范-14(禁第一人称/自称一致)", self_status, f"第一人称={len(first_person_hits)}, 自称分布={self_terms}", first_person_hits[:8]))
 
-        # Units, subscripts, Chapter 2 time units, punctuation, enzymes, genes/species, abbreviations
+        # Author CV requirement & blind redaction check (Acad-CV)
+        want_cv = bool(preset.get("modes", {}).get(mode, {}).get("include_cv", mode in ("phd-thesis", "master-thesis", "proposal", "midterm")))
+        cv_issues: list[str] = []
+        cv_blind_leaks: list[str] = []
+        if args.review_stage == "blind":
+            for cvp in cv_paras_list:
+                cvt = _p_text(cvp).strip()
+                if cvt.startswith("姓名：") and "匿名" not in cvt and "隐去" not in cvt:
+                    cv_blind_leaks.append(f"盲审作者简历仍含未脱敏基本信息: {cvt[:36]!r}")
+                elif re.match(r"^(?:19|20)\d{2}", cvt) and "匿名" not in cvt and "隐去" not in cvt:
+                    cv_blind_leaks.append(f"盲审作者简历仍含未脱敏教育/工作经历: {cvt[:36]!r}")
+                elif (re.match(r"^\d+\.\s+", cvt) or "et al." in cvt) and "匿名" not in cvt and "隐去" not in cvt and "Fictional" not in cvt:
+                    cv_blind_leaks.append(f"盲审作者简历成果列表未隐去署名: {cvt[:36]!r}")
+            cv_issues.extend(cv_blind_leaks)
+            cv_status = "FAIL" if cv_issues else "PASS"
+            cv_summary = (
+                "作者简历符合盲审匿名要求"
+                if not cv_issues
+                else f"作者简历存在 {len(cv_issues)} 处盲审脱敏遗漏"
+            )
+        elif want_cv:
+            if cv_heading_idx is None:
+                cv_issues.append("参考文献后缺少“个人简历/作者简历及在学期间发表的学术论文与研究成果”章节")
+            elif ref_idx is not None and cv_heading_idx <= ref_idx:
+                cv_issues.append("“个人简历/作者简历”应置于参考文献之后")
+            elif not cv_paras_list:
+                cv_issues.append("“个人简历/作者简历”标题下缺少简历或成果列表正文")
+            cv_status = "FAIL" if cv_issues else "PASS"
+            cv_summary = f"已检测作者简历（{len(cv_paras_list)} 段）" if not cv_issues else cv_issues[0]
+        else:
+            cv_status = "INFO"
+            cv_summary = f"当前模式 ({mode}) 不强制要求作者简历"
+        results.append(CheckResult("Acad-CV", "学术规范-21(作者简历与成果列表)", cv_status, cv_summary, cv_issues[:8]))
+
+        # Units, subscripts, experimental time units, punctuation, Chinese spaces, enzymes, genes/species, abbreviations
         unit_issues: list[str] = []
         formula_review: list[str] = []
         punct_issues: list[str] = []
+        space_issues: list[str] = []
         bio_italic_issues: list[str] = []
         user_genes = [g.strip() for g in (args.genes or "").split(",") if g.strip()]
         user_species = [s.strip() for s in (args.species or "").split(",") if s.strip()] + list(BUILTIN_SPECIES)
@@ -1138,10 +1794,27 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
             if FORMULA_RE.search(t):
                 formula_review.extend(_formula_review(p, styles))
             if ps in (BODY_STYLES | ABS_ZH_STYLES | FIG_CAP_STYLES):
-                for m in SUBPANEL_DUNHAO_RE.finditer(t):
-                    punct_issues.append(f"多小图图序误用顿号(应为中文逗号): {m.group(0)}")
+                for m in SUBPANEL_BAD_SEP_RE.finditer(t):
+                    punct_issues.append(f"多子图图序请统一用中文逗号“，”分隔: {m.group(0)}")
                 for m in CJK_ASCII_PUNCT_RE.finditer(t):
                     punct_issues.append(f"中文行文混用英文标点: {m.group(0)!r}")
+                for m_p in PAREN_ZH_CONTENT_RE.finditer(t):
+                    inner = m_p.group(1)
+                    if "," not in inner:
+                        continue
+                    if (
+                        (re.search(r"[\u4e00-\u9fff]\s*,|,\s*[\u4e00-\u9fff]", inner) or VENDOR_KEYWORDS_RE.search(inner))
+                        and not re.search(r"et al\.\s*,\s*\d{4}", inner)
+                    ):
+                        punct_issues.append(f"中文括号/设备厂商名间误用英文逗号（应为中文逗号“，”）: {m_p.group(0)[:40]!r}")
+                for m_v in PAREN_VENDOR_DUNHAO_RE.finditer(t):
+                    inner_v = m_v.group(1)
+                    parts_v = [seg.strip() for seg in inner_v.split("、")]
+                    if len(parts_v) == 2 and not re.search(r"等(?:试剂|仪器|生物|设备|公司|厂商|供应商|耗材|品牌|$)", inner_v):
+                        if bool(VENDOR_BRAND_RE.search(parts_v[0])) ^ bool(VENDOR_BRAND_RE.search(parts_v[1])):
+                            punct_issues.append(f"设备/试剂与厂商间误用顿号（应为中文逗号“，”）: {m_v.group(0)[:40]!r}")
+            if ps in ABS_EN_STYLES and re.search(r"[，。；：（）“”‘’、]", t):
+                punct_issues.append(f"英文摘要含中文标点: {t[:40]!r}")
             for m in ENZYME_NO_SPACE_RE.finditer(t):
                 bio_italic_issues.append(f"内切酶罗马数字前缺空格: {m.group(0)!r}")
             for r in p.findall(f".//{W}r"):
@@ -1156,21 +1829,53 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
                     if sp in rt and not is_it:
                         bio_italic_issues.append(f"拉丁物种名未斜体: {sp} in {rt[:30]!r}")
 
+        space_scope_paras = [
+            p
+            for p in blocks
+            if p.tag == f"{W}p"
+            and not _is_toc_para(p)
+            and _p_style(p) in (BODY_STYLES | ABS_ZH_STYLES | ABS_EN_STYLES | FIG_CAP_STYLES | TBL_NOTE_STYLES)
+            and _p_style(p) not in (CH1_STYLES | H2_STYLES | H3_STYLES | H4_STYLES)
+        ]
+        for p in space_scope_paras:
+            t = _live_p_text(p).strip()
+            if not t or any(k in t for k in legal_skip) or "____" in t or _p_style(p) in BIB_STYLES:
+                continue
+            for m_sp in CJK_HALF_SPACE_RE.finditer(t):
+                space_issues.append(f"中文字符后留空使用了英文半角空格（请改用全角空格“　”或删除多余空格）: {m_sp.group(0)!r} in {t[:36]!r}")
+            for m_fs in ASCII_FULL_SPACE_RE.finditer(t):
+                space_issues.append(f"英文/数字后误用中文全角空格（应使用英文半角空格）: {m_fs.group(0)!r} in {t[:36]!r}")
+
         unit_status = 'FAIL' if unit_issues else 'WARN' if formula_review else 'PASS'
         unit_summary = (f'检出 {len(unit_issues)} 处单位问题，{len(formula_review)} 处化学式待复核'
                         if unit_issues or formula_review else '单位、微升符号及化学式规范')
         results.append(CheckResult("Err-4-5-6", "常见错误-4/5/6(化学式下标/µL/数字单位空格)",
                                    unit_status, unit_summary, (unit_issues + formula_review)[:12]))
 
-        ch2_start = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.match(r"^第二章\b", _p_text(el).strip())), None)
-        ch3_start = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.match(r"^第三章\b", _p_text(el).strip())), None)
+        ch1_headings = [
+            i for i, el in enumerate(blocks)
+            if el.tag == f"{W}p"
+            and not _is_toc_para(el)
+            and _p_style(el) in CH1_STYLES
+            and not _is_front_title(_p_text(el))
+            and (_para_num_info(el, styles, numbering_defs) is not None or re.match(r"^(?:第[一二三四五六七八九十\d]+章|Chapter\s+\d+)\b", _p_text(el).strip(), re.I))
+        ]
+        methods_range: tuple[int, int] | None = None
+        for idx_pos, h_idx in enumerate(ch1_headings):
+            htxt = _p_text(blocks[h_idx]).strip()
+            if re.search(r"^(?:第二章|Chapter\s+2\b)", htxt, re.I) or re.search(r"(?:材料.*方法|实验方法|实验程序|研究方法|方法和步骤|Materials?\s+and\s+Methods?)", htxt, re.I):
+                next_h = ch1_headings[idx_pos + 1] if idx_pos + 1 < len(ch1_headings) else body_end
+                methods_range = (h_idx, next_h)
+                break
         has_cjk_t, has_eng_t = False, False
-        if ch2_start is not None:
-            ch2_txt = "\n".join(_p_text(el) for el in blocks[ch2_start : (ch3_start or body_end)])
-            has_cjk_t = bool(CJK_TIME_RE.search(ch2_txt))
-            has_eng_t = bool(ENG_TIME_RE.search(ch2_txt))
-        results.append(CheckResult("Err-7", "常见错误-7(第二章时间单位中英文统一)", "FAIL" if (has_cjk_t and has_eng_t) else "PASS", f"第二章中文时间={has_cjk_t}, 英文时间={has_eng_t}", ["第二章同时混用中文时间词与英文缩写"] if (has_cjk_t and has_eng_t) else []))
-        results.append(CheckResult("Err-2-11-12", "常见错误-2/11/12(中英文标点与小图逗号)", "PASS" if not punct_issues else "FAIL", "中英文标点及多小图逗号规范" if not punct_issues else f"发现 {len(punct_issues)} 处标点混用", punct_issues[:12]))
+        if methods_range is not None:
+            exp_txt = "\n".join(_p_text(el) for el in blocks[methods_range[0] : methods_range[1]])
+            exp_clean = FIG_TBL_REF_STRIP_RE.sub("", exp_txt)
+            has_cjk_t = bool(CJK_TIME_RE.search(exp_clean))
+            has_eng_t = bool(ENG_TIME_WORD_RE.search(exp_clean) or ENG_TIME_SYM_RE.search(exp_clean))
+        results.append(CheckResult("Err-7", "常见错误-7(实验程序时间单位中英文统一)", "FAIL" if (has_cjk_t and has_eng_t) else "PASS", f"实验程序中文时间={has_cjk_t}, 英文时间={has_eng_t}", ["实验程序章节同时混用中文时间单位与英文缩写（须全文统一中文或英文）"] if (has_cjk_t and has_eng_t) else []))
+        results.append(CheckResult("Err-2-11-12", "常见错误-2/11/12(中英文标点与多子图/厂商逗号)", "PASS" if not punct_issues else "FAIL", "中英文标点、多子图及设备厂商逗号规范" if not punct_issues else f"发现 {len(punct_issues)} 处标点混用", punct_issues[:12]))
+        results.append(CheckResult("Err-14", "常见错误-14(中文后全角空格与英文后半角空格)", "PASS" if not space_issues else "FAIL", "中英文空格规范" if not space_issues else f"发现 {len(space_issues)} 处中英文空格异常", space_issues[:12]))
         results.append(CheckResult("Acad-15-16", "学术规范-15/16/常见错误-13(基因/物种/内切酶斜体与空格)", "PASS" if not bio_italic_issues else "FAIL", "物种名、基因名及内切酶检查通过" if not bio_italic_issues else f"发现 {len(bio_italic_issues)} 处斜体或空格问题", bio_italic_issues[:12]))
 
         # Layout-7 abbreviation first expansion check per scope
@@ -1194,7 +1899,14 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         if args.review_stage == "blind":
             tokens = [s.strip() for s in (args.sensitive_names or '').split(',') if s.strip()]
             blind_issues = [f'发现指定身份词：{part}' for part in identity_parts(parsed, tokens)]
-            ack_i = next((i for i, el in enumerate(blocks) if el.tag == f"{W}p" and re.fullmatch(r"致\s*谢", _p_text(el).strip())), None)
+            blind_issues.extend(cv_blind_leaks)
+            ack_candidates = [
+                i for i, el in enumerate(blocks)
+                if el.tag == f"{W}p"
+                and not (_p_style(el) or "").lower().startswith("toc")
+                and re.fullmatch(r"致[\s\u3000]*谢", _p_text(el).strip())
+            ]
+            ack_i = ack_candidates[-1] if ack_candidates else None
             if ack_i is not None:
                 ack_txt = "\n".join(_p_text(el) for el in blocks[ack_i + 1 :] if el.tag == f"{W}p" and "独创性" not in _p_text(el) and "声明" not in _p_text(el))
                 if "匿名评审" not in ack_txt and len(ack_txt.strip()) > 30:
@@ -1210,7 +1922,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
             _p_text(p)
             for p in main_paras
             if _p_style(p) not in (FIG_CAP_STYLES | TBL_TITLE_STYLES | TBL_NOTE_STYLES)
-            and not re.match(r"^(?:图|补充图|表|附表)\s*[1-9A-D]", _p_text(p).strip())
+            and not re.match(r"^(?:图|补充图|表|附表)\s*(?:[1-9]\d*|[A-D])", _p_text(p).strip())
         )
         zh_c = len(re.findall(r"[\u4e00-\u9fff]", body_prose))
         en_w = len(re.findall(r"[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*", body_prose))
@@ -1221,7 +1933,7 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         wc_status = "INFO"
         wc_msg = f"正文（不含图注与参考文献）计约 {total_w} 字（中文 {zh_c} + 英文/数字词 {en_w}）"
         wc_range = preset.get("modes", {}).get(mode, {}).get("word_count_range")
-        if isinstance(wc_range, list) and len(wc_range) == 2:
+        if isinstance(wc_range, list) and len(wc_range) == 2 and not template:
             lo, hi = wc_range[0], wc_range[1]
             if (lo is not None and total_w < lo) or (hi is not None and total_w > hi):
                 wc_status = "WARN"
@@ -1232,7 +1944,12 @@ def run_audit(args: argparse.Namespace) -> tuple[dict, list[CheckResult]]:
         custom_style = False
         if args.profile_config:
             override = json.loads(pathlib.Path(args.profile_config).read_text(encoding='utf-8'))
-            custom_style = override.get('citation_style') in ('nature', 'gb7714')
+            if not isinstance(override, dict):
+                raise ValueError('--profile-config must contain a JSON object')
+            cs_val = override.get('citation_style')
+            if cs_val is not None and cs_val not in ('nature', 'gb7714'):
+                raise ValueError(f"Unsupported profile citation_style {cs_val!r}; expected 'nature' or 'gb7714'")
+            custom_style = cs_val in ('nature', 'gb7714')
         _use_audit_policy(results, preset, template, args.citation_style != 'auto' or custom_style
                           or args.preset == 'cn-gb7714-general')
 
@@ -1259,7 +1976,7 @@ def _report_paths(args: argparse.Namespace) -> dict[str, pathlib.Path]:
 def _manual_review(review_stage: str) -> list[dict[str, str]]:
     tasks = [
         ("rendered-pages", "按学校要求，在 Word 打印布局或最终 PDF 中核对封面、各节起始页、页码与页眉，并检查空白页与孤行。"),
-        ("rendered-figures-tables", "如有图表，在最终 PDF 中逐一检查图注与图片是否同页、表格跨页表头是否重复、表线和文字是否清晰。"),
+        ("rendered-figures-tables", "如有图表，在最终 PDF 中逐一检查图注与图片是否同页、图中文字是否不小于 6 号字（7.5 pt）且标尺统一、表格跨页表头是否重复。"),
         ("refresh-fields", "如有目录或交叉引用，在 Word 副本中更新这些域，重新导出 PDF，抽查目录页码、图表编号和跳转位置。"),
     ]
     if review_stage == "blind":
@@ -1309,10 +2026,7 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--md-report", help="Optional Markdown report path (outside skill dir)")
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Read-only OOXML & 65-item compliance audit for theses and reports.")
-    add_arguments(parser)
-    args = parser.parse_args(argv)
+def run_parsed(args: argparse.Namespace) -> int:
     try:
         paths = _report_paths(args)
         stats, results = run_audit(args)
@@ -1330,6 +2044,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    -> {d}")
     print(f"AUDIT_SUMMARY=FAIL:{counts['FAIL']} WARN:{counts['WARN']} PASS:{counts['PASS']}")
     return 1 if counts["FAIL"] or (args.fail_on_warn and counts["WARN"]) else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Read-only OOXML & 67-item compliance audit for theses and reports.")
+    add_arguments(parser)
+    args = parser.parse_args(argv)
+    return run_parsed(args)
 
 
 if __name__ == "__main__":

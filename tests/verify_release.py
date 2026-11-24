@@ -20,7 +20,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.resolve()
 SKILL_DIR = REPO_ROOT / "skills" / "bio-thesis-formatter"
 CLI_SCRIPT = SKILL_DIR / "scripts" / "bio_thesis.py"
 MASTER_DOCX = SKILL_DIR / "resources" / "bio-thesis-master.docx"
-CHECKLIST_DOCX = SKILL_DIR / "resources" / "bio-thesis-self-check-65.docx"
+CHECKLIST_DOCX = SKILL_DIR / "resources" / "bio-thesis-self-check-67.docx"
 CUSTOM_PRESET = REPO_ROOT / "presets" / "custom-university.example.json"
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -127,8 +127,8 @@ def check_checklist() -> None:
             sections[cur] = 0
         elif cur and cells and cells[0].isdigit():
             sections[cur] += 1
-    assert sum(sections.values()) == 65, f"Expected 65 checklist items, got {sections}"
-    print(f"GATE-2 CHECKLIST: PASS (sections={sections}, total=65)")
+    assert sum(sections.values()) == 67, f"Expected 67 checklist items, got {sections}"
+    print(f"GATE-2 CHECKLIST: PASS (sections={sections}, total=67)")
 
 
 def check_repo_hygiene() -> None:

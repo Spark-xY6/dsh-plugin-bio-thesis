@@ -328,6 +328,8 @@ def _patch_front_and_back(
     author: str | None,
     major: str | None,
     advisor: str | None,
+    univ: str | None,
+    school: str | None,
     blind: bool,
 ) -> None:
     children = list(body)
@@ -345,6 +347,23 @@ def _patch_front_and_back(
         for el in to_remove:
             body.remove(el)
 
+    if not mode_cfg.get("include_cv", True):
+        children = list(body)
+        cv_idx = next((i for i, el in enumerate(children) if _p_text(el).strip().startswith(("个人简历", "作者简历"))), None)
+        if cv_idx is not None:
+            cv_end = next(
+                (
+                    i
+                    for i in range(cv_idx + 1, len(children))
+                    if children[i].tag == f"{W}p"
+                    and _p_text(children[i]).strip().replace("\u3000", "").replace(" ", "") in ("致谢", "学位论文独创性与使用授权声明")
+                ),
+                len(children),
+            )
+            for el in children[cv_idx:cv_end]:
+                if el.find(f"./{W}pPr/{W}sectPr") is None:
+                    body.remove(el)
+
     if not mode_cfg["include_declaration"]:
         children = list(body)
         decl_idx = next((i for i, el in enumerate(children) if _p_text(el).strip() == "学位论文独创性与使用授权声明"), None)
@@ -353,7 +372,7 @@ def _patch_front_and_back(
                 if el.tag == f"{W}p" and el.find(f"./{W}pPr/{W}sectPr") is None:
                     body.remove(el)
 
-    for p in body.findall(f"{W}p"):
+    for p in list(body.findall(f"{W}p")):
         txt = _p_text(p)
         t_el = p.find(f".//{W}t")
         if t_el is None:
@@ -370,8 +389,26 @@ def _patch_front_and_back(
                 t_el.text = "Directed by 【匿名评审隐去】"
             elif advisor:
                 t_el.text = f"Directed by {advisor}"
-        elif blind and txt.startswith("姓名："):
-            t_el.text = "【匿名评审版本隐去身份信息】"
+        elif txt.startswith("姓名："):
+            if blind:
+                t_el.text = "【匿名评审版本隐去姓名、性别、出生年月与籍贯】"
+            elif author:
+                t_el.text = txt.replace("【姓名】", author)
+        elif txt.startswith("20XX年9月"):
+            if blind:
+                if "本科" in txt:
+                    body.remove(p)
+                else:
+                    t_el.text = "【匿名评审版本隐去就读院校、培养单位与导师信息】"
+            else:
+                new_edu = txt
+                if univ:
+                    new_edu = new_edu.replace("【学校名称】", univ)
+                if school:
+                    new_edu = new_edu.replace("【培养单位】", school)
+                if major:
+                    new_edu = new_edu.replace("【专业名称】", major)
+                t_el.text = new_edu
         elif blind and txt.startswith("1. Author, A."):
             t_el.text = "【匿名评审版本仅保留成果类型与作者排序，隐去个人、导师与合作者姓名】"
             first_run = next((r for r in p.findall(f"{W}r") if r.find(f".//{W}t") is t_el), None)
@@ -475,11 +512,11 @@ def _adapt_chapter_skeleton(body: ET.Element, mode_cfg: dict) -> None:
 
     if profile == "proposal":
         new_nodes = [
-            _make_p("第二章 研究材料与方法", "Heading1Chapter"),
-            _make_p("2.1 资料与来源", "Heading2Sec"),
-            _make_p("【说明使用的资料、研究对象或原始材料，以及选择范围与理由。】", "BodyTextZH"),
-            _make_p("2.2 研究方法", "Heading2Sec"),
-            _make_p("【说明与研究问题对应的步骤、分析方法及适用条件。】", "BodyTextZH"),
+            _make_p("第二章 实验材料与方法", "Heading1Chapter"),
+            _make_p("2.1 实验材料", "Heading2Sec"),
+            _make_p("【说明使用的资料、研究对象、试剂与仪器设备（型号与生产厂商间默认用中文逗号分隔，如 P-2000，Sutter Instrument）。】", "BodyTextZH"),
+            _make_p("2.2 实验程序与数据分析", "Heading2Sec"),
+            _make_p("【说明实验流程、分析方法及适用条件。实验程序中的时间单位须全文统一为中文或统一为英文缩写。】", "BodyTextZH"),
             _make_p("第三章 前期研究进展与初步讨论", "Heading1Chapter"),
             _make_p("3.1 【第一部分前期研究结果与讨论】", "Heading2Sec"),
             _make_p("【当前研究结果与讨论正文。】", "BodyTextZH"),
@@ -496,11 +533,11 @@ def _adapt_chapter_skeleton(body: ET.Element, mode_cfg: dict) -> None:
         ]
     else:
         new_nodes = [
-            _make_p("第二章 工作材料、方法和步骤", "Heading1Chapter"),
-            _make_p("2.1 资料与来源", "Heading2Sec"),
-            _make_p("【说明使用的资料、工具或研究对象。】", "BodyTextZH"),
-            _make_p("2.2 方法和步骤", "Heading2Sec"),
-            _make_p("【说明实施和分析步骤。】", "BodyTextZH"),
+            _make_p("第二章 实验材料、方法和步骤", "Heading1Chapter"),
+            _make_p("2.1 实验材料", "Heading2Sec"),
+            _make_p("【说明使用的资料、仪器设备与研究对象（型号与厂商间默认用中文逗号分隔）。】", "BodyTextZH"),
+            _make_p("2.2 实验程序和步骤", "Heading2Sec"),
+            _make_p("【说明实施与分析步骤。实验程序中的时间单位须全文统一为中文或统一为英文缩写。】", "BodyTextZH"),
             _make_p("第三章 工作结果与讨论", "Heading1Chapter"),
             _make_p("3.1 【轮转主要结果与讨论】", "Heading2Sec"),
             _make_p("【说明轮转期间取得的结果以及仍待解决的问题。】", "BodyTextZH"),
@@ -680,6 +717,8 @@ def initialize_docx(args: argparse.Namespace) -> None:
         author=args.author,
         major=args.major,
         advisor=args.advisor,
+        univ=univ,
+        school=school,
         blind=blind,
     )
     _adapt_chapter_skeleton(body, mode_cfg)

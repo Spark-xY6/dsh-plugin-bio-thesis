@@ -115,7 +115,7 @@ test('installed tarball can generate and audit a thesis using only its shipped r
     assert.match(cli(['audit', '--docx', 'generic.docx']), /AUDIT_SUMMARY=FAIL:0\b/);
     cli(['export-checklist', '--output', 'checklist.docx']);
     assert.deepEqual(await fs.readFile(path.join(consumer, 'checklist.docx')),
-      await fs.readFile(path.join(skillDir, 'resources/bio-thesis-self-check-65.docx')));
+      await fs.readFile(path.join(skillDir, 'resources/bio-thesis-self-check-67.docx')));
   });
 
   const source = path.join(consumer, 'school.dotx');
@@ -195,6 +195,14 @@ test('installed tarball can generate and audit a thesis using only its shipped r
     assert.equal(checkSummary(report).FAIL, 2);
     assert.deepEqual(report.checks.filter(c => c.status === 'FAIL').map(c => c.check_id).sort(),
       ['Acad-10-Blind', 'Layout-1']);
+    const corrected = path.join(consumer, 'corrected.docx');
+    const margins = ['repair-margins', '--docx', damaged, '--template', source];
+    assert.match(cli(margins), /MARGIN_CHANGES=1/);
+    cli([...margins, '--output', corrected]);
+    cli(['audit', '--docx', corrected, ...blindAudit, '--json-report', 'corrected.json'], 1);
+    const checked = JSON.parse(await fs.readFile(path.join(consumer, 'corrected.json'), 'utf8'));
+    assert.deepEqual(checked.checks.filter(c => c.status === 'FAIL').map(c => c.check_id), ['Acad-10-Blind']);
+    assert.equal(checked.checks.find(c => c.check_id === 'Layout-1').status, 'PASS');
   });
 
   await t.test('input and report collisions preserve original bytes', async () => {

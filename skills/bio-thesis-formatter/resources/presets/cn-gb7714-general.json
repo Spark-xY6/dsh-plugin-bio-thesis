@@ -34,13 +34,15 @@
     "cjk_body_font": "宋体",
     "cjk_heading_font": "黑体",
     "latin_font": "Times New Roman",
-    "figure_latin_font": "Arial"
+    "figure_latin_font": "Arial",
+    "figure_min_font_pt": 7.5
   },
   "modes": {
     "phd-thesis": {
       "cover_lines": ["博士研究生学位论文"],
       "header_template": "{university}博士学位论文",
       "include_copyright": true,
+      "include_cv": true,
       "include_declaration": true,
       "full_cover_fields": true,
       "chapter_profile": "thesis",
@@ -51,6 +53,7 @@
       "cover_lines": ["硕士研究生学位论文"],
       "header_template": "{university}硕士学位论文",
       "include_copyright": true,
+      "include_cv": true,
       "include_declaration": true,
       "full_cover_fields": true,
       "chapter_profile": "thesis",
@@ -61,6 +64,7 @@
       "cover_lines": ["{school}", "研究生学位论文开题报告"],
       "header_template": "{university}{school}　开题报告",
       "include_copyright": false,
+      "include_cv": true,
       "include_declaration": false,
       "full_cover_fields": false,
       "chapter_profile": "proposal",
@@ -71,6 +75,7 @@
       "cover_lines": ["{school}", "研究生中期考核书面报告"],
       "header_template": "{university}{school}　中期考核报告",
       "include_copyright": false,
+      "include_cv": true,
       "include_declaration": false,
       "full_cover_fields": false,
       "chapter_profile": "proposal",
@@ -81,6 +86,7 @@
       "cover_lines": ["{school}", "研究生实验室轮转报告"],
       "header_template": "{university}{school}　轮转报告",
       "include_copyright": false,
+      "include_cv": false,
       "include_declaration": false,
       "full_cover_fields": false,
       "chapter_profile": "rotation",

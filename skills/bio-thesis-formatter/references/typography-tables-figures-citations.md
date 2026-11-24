@@ -7,14 +7,15 @@ The numeric values and scientific examples below describe the bundled examples. 
 - Chinese body prose: `宋体` (`SimSun`, `12 pt`), justified (`both`), exact `20 pt` line spacing, 2-character first-line indent (`480 dxa`).
 - Headings: `黑体` (`SimHei`), bold, single ASCII space between numbering and title (`1.1 研究背景`, `Err-9`).
 - All Latin letters, Arabic numerals, Greek symbols (`α`, `β`, `γ`, `μ`), `°C`, dashes, and English/formula parentheses MUST use `Times New Roman` (not SimSun/SimHei).
-- Inside embedded vector artwork (`SVG`/`EMF`): sans-serif fonts (`Arial` / `黑体`, `6–9 pt` readable text, `10 pt` bold uppercase panel letters `A, B, C`).
+- Inside embedded vector artwork (`SVG`/`EMF`): sans-serif fonts (`Arial` / `黑体`, **minimum `6 号字` = `7.5 pt`** across all readable labels, `6–9 pt` standard, `10 pt` bold uppercase panel letters `A, B, C`).
 
-## 2. Punctuation, Units, Dashes & Polarity (`Err-2-11-12`, `Err-4-5-6`, `Err-7`)
+## 2. Punctuation, Units, Dashes & Polarity (`Err-2-11-12`, `Err-4-5-6`, `Err-7`, `Err-14`)
 
 - **Chinese vs English punctuation**: Full-width punctuation in Chinese sentences (`，。；：（）“”、`); ASCII half-width in English prose, bibliography lists, and chemical formulas (`CO₂`, `(NH₄)₂SO₄`).
-- **Enumerations vs Pairs**: Parallel genes/proteins use dunhao `、` (`TP53、MYC 和 KRAS`); equipment + vendor pairs use Chinese comma `，` (`设备型号，供应商`); multiple subpanels cited in Chinese prose use Chinese comma `，` (`图 1.1 A，B，F 和 H`), never dunhao (`图3.7A、B`).
+- **Enumerations vs Pairs**: Parallel genes/proteins use dunhao `、` (`TP53、MYC 和 KRAS`); equipment + vendor pairs in Materials & Methods use Chinese comma `，` (`P-2000，Sutter Instrument` or `PCR仪，Bio-Rad`); multiple subpanels cited in Chinese prose use Chinese comma `，` (`图 1.1 A，B，F 和 H`), never dunhao (`图 3.7 A、B`) or ASCII comma (`图 1.1 A, B`).
+- **Spaces (`Err-14`)**: Space character follows the preceding script: use English half-width space after English/numerals (`50 mL`, `10 µL`, heading `1.1 研究背景`), and Chinese full-width space (`　`) when separating Chinese items (`姓名：XXX　性别：X`, `摘　要`, `目　录`, `致　谢`).
 - **Units**: Standardize `L`, `mL`, `µL`/`μL` (never `uL`, `ug`, `uM`), distinguish `mM` vs `mm`; single half-width space between number and unit (`50 mL`, `10 µL`), **no space** before `%` or `°C` (`95%`, `37°C`); roman lowercase `g` for grams, italic lowercase *g* for relative centrifugal force (`12,000 × g`).
-- **Chapter 2 Time Units**: Choose **either** all Chinese (`周`, `天`, `小时`, `分钟`, `秒`) **or** all English abbreviations (`hr`, `min`, `sec`), never mixed.
+- **Experimental Procedure Time Units (`Err-7`)**: Choose **either** all Chinese (`周`, `天`, `小时`, `分钟`, `秒`) **or** all English abbreviations (`h/hr`, `min`, `s/sec`), never mixed in Materials & Methods / experimental procedures.
 - **Dashes**: Hyphen `-` for compounds/position numbers (`3-甲基吡啶`, `氧-氢键`); en dash `–` for numeric/page ranges (`285–298`); em dash `—` for breaks/structural bonds (`—COOH`); tilde `~` for high-energy bonds.
 - **Sequence Polarity**: Label `5′-` / `3′-` on nucleic acids and `N-` / `C-` on peptides/proteins.
 - **Acronyms (`Layout-7`)**: Expand once in Chinese Abstract, once in English Abstract, and once at first mention in Main Body; never repeat full expansions within the same scope.
@@ -37,7 +38,7 @@ The numeric values and scientific examples below describe the bundled examples. 
   4. *Italic* title-case abbreviated journal name (`Nat. Rev. Mol. Cell Biol.`, exceptions: `eLife`, `iScience`);
   5. **Bold** upright volume number;
   6. En dash `–` in page range;
-  7. `(Year)` with **no trailing period** and no DOI unless ahead-of-print;
+  7. `(Year)` with **no trailing period**, and **no DOI except on online-ahead-of-print / preprint entries lacking formal volume & page numbers** (`audit.forbid_published_doi`);
   8. English references sorted **before** Chinese references.
 
 ### Option B: `gb7714`

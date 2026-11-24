@@ -16,7 +16,7 @@ tests/tmp_out/
 *.pdf
 *.tgz
 !skills/bio-thesis-formatter/resources/bio-thesis-master.docx
-!skills/bio-thesis-formatter/resources/bio-thesis-self-check-65.docx
+!skills/bio-thesis-formatter/resources/bio-thesis-self-check-67.docx
 /work/
 /outputs/
 /local/

@@ -1,11 +1,11 @@
 ---
 name: bio-thesis-formatter
-description: Create Word thesis drafts from school DOCX or DOTX templates, audit existing drafts for structural and formatting issues, screen specified blind-review identities, and export a 65-item review checklist.
+description: Create Word thesis drafts from school DOCX or DOTX templates, audit an existing draft against templates or rigorous built-in 67-item life-science dissertation defaults, preview or repair section margins, screen blind-review identities, and export the 67-item checklist.
 whenToUse: Use when a student creates a Word thesis from an institutional template, checks a revised thesis or milestone report, or prepares a blind-review copy.
 disable-model-invocation: false
 user-invocable: true
 metadata:
-  version: "0.3.0"
+  version: "0.5.0"
   license: MIT
 ---
 
@@ -14,6 +14,8 @@ metadata:
 Create a Word thesis or milestone report from the student's template and audit later drafts against it. Apply discipline-specific typography and citation checks when requested.
 
 Resolve all relative paths below (`scripts/`, `resources/`, `references/`) against this skill's base directory (`<skill_resources>` in DeepSeek Harness).
+
+For an existing manuscript, route “check my draft” to `audit`. For a full role-aligned layout comparison (section geometry, all margins/headers/footers/gutter, `mirrorMargins`/`evenAndOddHeaders`, and section page numbering), run `scripts/bio_thesis.py repair --docx DRAFT --template SCHOOL`; add `--output NEW.docx` to save a repaired copy alongside optional `--no-fix-numbering`, `--fix-tables`, or `--clean-leading-spaces` flags (keep `repair-margins` when only previewing or syncing the four margins). Match sections by role (cover, front-matter, body, landscape wide-table islands). After a repair, use `audit --docx NEW.docx --template SCHOOL --base-docx DRAFT` to distinguish remaining issues. Use `init` when the user wants a fresh draft.
 
 ## Scope & Tool Separation
 
@@ -49,7 +51,7 @@ Review [document-modes-and-presets.md](references/document-modes-and-presets.md)
 
 Support two equally first-class paths depending on what the author supplies:
 
-- **Path A — No school template file (written formatting requirements only)**: Use the bundled desensitized academic master (`resources/bio-thesis-master.docx`) adapted with `--preset` + `--profile-config <custom.json>` (overriding page dimensions, margins in cm, `mirror_margins`, `odd_even_headers`, `typography`, `university_name`, `school_name`, `citation_style`, `--mode`, and `--review-stage`). **Prefer passing parameters and JSON overrides directly to `bio_thesis.py init` rather than writing custom XML-patching scripts on top of the generated `.docx`**, because hand-patching `styles.xml`/`sectPr` nodes can introduce Word open errors.
+- **Path A — No school template file (written formatting requirements only)**: Use the bundled desensitized academic master (`resources/bio-thesis-master.docx`) adapted with `--preset` + `--profile-config <custom.json>` (overriding page dimensions, margins in cm, `mirror_margins`, `odd_even_headers`, `typography`, `university_name`, `school_name`, `citation_style`, `modes`, `audit.disabled_checks`, `audit.forbid_published_doi`, `--mode`, and `--review-stage`). **NEVER write ad-hoc Python/OOXML scripts to hand-patch `word/styles.xml` or `sectPr` tags on top of the `.docx` produced by `bio_thesis.py init`** — hand-patching generated OOXML risks Word corruption/open errors; pass parameters or `--profile-config` JSON directly to `bio_thesis.py init` instead.
 - **Path B — School `.docx` / `.dotx` template supplied**: Pass `init --template <school.docx|school.dotx> --output <candidate.docx>`. Properties, sections, styles, fields, media and content come from that template. Fill explicit markers in ordinary Word text, such as `{{title_zh}}` with `--title-zh` or `{{author}}` with `--author`. Template mode masks identity markers in blind mode. Check actual identity-bearing text, the file properties, images, signatures and embedded files before sending.
 
 Pass `audit --template <school.docx|school.dotx>` to use that template as the layout reference. Supply the applicable citation style and use `audit.template_checks` in the optional JSON profile to opt into other school-specific checks. Treat `INFO` coverage gaps and `WARN` findings as review items. Generic settings below apply to the bundled master; inspect the supplied template and local requirements for other institutions.
@@ -78,20 +80,20 @@ python3 -B scripts/bio_thesis.py init \
   --advisor "Advisor Name"
 ```
 
-Export an editable 65-item checklist `.docx` at any time:
+Export an editable 67-item checklist `.docx` at any time:
 
 ```sh
-python3 -B scripts/bio_thesis.py export-checklist --output checklist_65.docx
+python3 -B scripts/bio_thesis.py export-checklist --output checklist_67.docx
 ```
 
-### Step 3: Apply the selected institution's rules
+### Step 3: Apply the selected institution's rules (Built-In Rigorous Defaults When Unspecified)
 
-The following conventions describe the bundled example. Apply them to external Word templates only if the institution requests them. See [layout](references/ooxml-layout-and-styles.md) and [typography](references/typography-tables-figures-citations.md).
+Unless the author provides an external `--template` or custom overrides via `--profile-config`, enforce these built-in default dissertation rules. See [layout](references/ooxml-layout-and-styles.md) and [typography](references/typography-tables-figures-citations.md).
 
-- **Three-Section Isolation**: `S1` Cover + Copyright (no header, no page number) -> `S2` Abstracts + TOC (`upperRoman` from `I`) -> `S3` Main Chapters + References + CV + Acknowledgements + Declaration (`decimal` from `1`), with `mirrorMargins` & `evenAndOddHeaders`.
-- **Three-Line Tables**: Top/bottom borders `1.5 pt` (`sz="12"`), header bottom border `0.75 pt` (`sz="6"`), zero vertical/interior lines (`nil`), `tblHeader` + `cantSplit`.
-- **Bilingual Fonts & Biological Nomenclature**: Chinese in SimSun/SimHei; Latin, numbers, Greek (`α`, `μ`), and `°C` in `Times New Roman`; genes & Latin binomials italicized (`TP53`, *Mus musculus*); restriction enzymes italicized with a space before Roman numerals (*EcoR I*, *Taq I*); `µL` (never `uL`), space before units except `%` and `°C`; consistent Chapter 2 time units; clean dashes (`-`, `–`, `—`, `~`).
-- **Nature vs GB/T 7714 Citations**: Nature mode checks superscript placement before punctuation, spaced initials, `&`, sentence-case titles, italicized abbreviated journals, bold volume, en-dash pages, `(Year)` without trailing period, English refs before Chinese refs, and zero residual `EN.CITE` codes. GB/T 7714 mode checks bracketed `[1]` citations, document type tags (`[J]`/`[M]`/`[D]`), and bidirectional reference closure.
+- **Three-Section Isolation & Author CV (`Acad-CV`)**: `S1` Cover + Copyright (no header, no page number) -> `S2` Abstracts + TOC (`upperRoman` from `I`) -> `S3` Main Chapters + References + Author CV & Publications (`个人简历及在学期间发表的学术论文与研究成果`, redacted in `--review-stage blind`, required by default in `final` degree/proposal/midterm modes) + Acknowledgements + Declaration (`decimal` from `1`), with `mirrorMargins` & `evenAndOddHeaders`.
+- **Three-Line Tables & Figure Standards (`Fig-5`)**: Top/bottom borders `1.5 pt` (`sz="12"`), header bottom border `0.75 pt` (`sz="6"`), zero vertical/interior lines (`nil`), `tblHeader` + `cantSplit`. In-figure labels must be `>= 6 号字` (`7.5 pt`) by default (`typography.figure_min_font_pt`), checked automatically on DrawingML/SVG runs (`Fig-5`) and verified visually on exported PDFs.
+- **Academic Prose, Punctuation, Spacing & Nomenclature (`Acad-14`, `Err-2-11-12`, `Err-7`, `Err-14`)**: No first-person pronouns (`我`/`我们`/`本人`) outside legal declarations; consistent objective self-term (`本论文`/`本研究`/`本工作`). Experimental procedure time units must stay uniformly Chinese (`小时`/`分钟`/`秒`) or English (`h/hr`, `min`, `s/sec`), never mixed. Equipment/vendor pairs (`P-2000，Sutter Instrument`) and multi-subpanel references (`图 1.1 A，B`) use Chinese commas `，`. Use half-width ASCII spaces after English/numerals and Chinese full-width spaces (`　`) when separating Chinese items (`姓名：XXX　性别：X`). Genes & Latin binomials italicized; restriction enzymes italicized with a space before Roman numerals (*EcoR I*, *Taq I*); `µL` (never `uL`); clean dashes (`-`, `–`, `—`, `~`).
+- **Nature vs GB/T 7714 Citations (`Ref-2-7`)**: Nature mode (default) checks superscript placement before punctuation, spaced initials, `&`, sentence-case titles, italicized abbreviated journals, bold volume, en-dash pages, `(Year)` without trailing period, English refs before Chinese refs, zero residual `EN.CITE` codes, and **no DOIs except on online-ahead-of-print/preprint references lacking volume/pages** (`audit.forbid_published_doi`). GB/T 7714 mode checks bracketed `[1]` citations, document type tags (`[J]`/`[M]`/`[D]`), and bidirectional reference closure.
 
 ### Step 4: Audit the candidate and inspect the rendered document
 
@@ -108,6 +110,6 @@ python3 -B scripts/bio_thesis.py audit \
   --md-report audit.md
 ```
 
-Map every `FAIL`/`WARN` finding to [self-check-65-matrix.md](references/self-check-65-matrix.md), resolve structural/typography issues in a new output copy, then finish with manual Word `F9` TOC update and print/PDF visual inspection.
+Map every `FAIL`/`WARN` finding to [self-check-67-matrix.md](references/self-check-67-matrix.md), resolve structural/typography issues in a new output copy, then finish with manual Word `F9` TOC update and print/PDF visual inspection.
 
 Use `audit --fail-on-warn` for an opt-in strict submission gate. Include pending tasks from `manual_review` when summarizing the JSON report. Full reports may contain document text and local paths.

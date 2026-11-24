@@ -18,8 +18,8 @@ test('DSH cordis plugin contract & bundle manifests', async () => {
   assert.match(patchText, /name:\s*['"]dsh-plugin-bio-thesis['"]/);
 
   for (const [locFile, expectedDetail] of [
-    ['zh-CN.json', 'README.zh.md'],
-    ['en-US.json', 'README.md'],
+    ['zh-CN.json', 'README.md'],
+    ['en-US.json', 'README.en.md'],
   ]) {
     const loc = JSON.parse(await fs.readFile(path.join(ROOT, 'locale', locFile), 'utf8'));
     assert.equal(loc.meta?.detail, expectedDetail);

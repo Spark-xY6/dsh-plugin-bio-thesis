@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-bio-thesis",
-  "version": "0.3.0",
-  "description": "Start a Word thesis from your university's template, audit an existing draft, and export a 65-item review checklist in DeepSeek Harness.",
+  "version": "0.5.0",
+  "description": "Start a Word thesis, check a draft against your university template, and save a repaired copy with aligned section layout, margins, and page numbering.",
   "author": "Spark-xY6",
   "homepage": "https://github.com/Spark-xY6/dsh-plugin-bio-thesis#readme",
   "repository": { "type": "git", "url": "git+https://github.com/Spark-xY6/dsh-plugin-bio-thesis.git" },
@@ -41,7 +41,7 @@
     "presets",
     "pyproject.toml",
     "README.md",
-    "README.zh.md",
+    "README.en.md",
     "docs",
     "LICENSE"
   ],
