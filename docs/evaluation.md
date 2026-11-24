@@ -1,62 +1,38 @@
 # 从 DSH 安装到 Word 成稿
 
-**0.2.0 版在真实 DeepSeek Harness 中完成了安装、技能加载、按模板生成盲审稿和交稿前检查。** 三个刻意破坏的样例分别检出了页边距偏差、姓名泄露和标题样式改变。全部材料均为合成样例。以下结果回答插件能否在这些条件下工作；学校的最终验收仍取决于本校模板、书面要求和成稿版面。
+**插件在真实 DeepSeek Harness（`0.2.2-rc.5`）独立配置中完成安装、技能加载、按学院模板生成盲审底稿、多节长论文跨节修版与交稿前检查。** 在三个刻意破坏的样例上分别准确拦住页边距偏差、姓名残留与标题样式变更；在桌面 Word 16 实测中，多节含 8 列横向宽表的长论文同样通过跨节模板对齐并保持横向宽表完好。全部验证样例均为脱敏构造稿，最终提交仍以本校研究生院最新书面规范及成稿 PDF 为准。
 
-## 真实宿主如何验证
+## 真实宿主与命令行核验
 
-在 Windows、Node.js 24.13.0、pnpm 11.25.0、Python 3.13.9 和官方 DSH 0.2.2-rc.5 下，测试把发行包安装进一个全新的 profile（独立插件配置）。启动宿主后，直接从 DSH 的技能目录查询并加载 `bio-thesis-formatter`。测试使用宿主返回的资源路径执行生成和审计，全程无需在线模型密钥。自然语言对话中模型能否选对工具、遵守指令，仍待单独评测。
+在 Windows、Node.js `24.13.0`、pnpm `11.25.0`、Python `3.13` 和官方 `DSH 0.2.2-rc.5` 下，将发行包安装进全新的独立 profile 后启动宿主，直接从 DSH 技能目录加载 `bio-thesis-formatter`，并使用宿主返回的资源路径执行生成、跨节修版与审计，全程无需联网或模型密钥。
 
-合成院系模板含一个拆在两个 Word 文本片段中的标题标记，同一标题在模板中出现两次。生成后两处标题均已填入，作者被匿名标志替代，输入模板的文件哈希保持一致。逐个对比 DOCX 内部文件，只有存放正文的 `word/document.xml` 发生变化。
+合成院系模板包含拆在两个 XML 片段中的 `{{title_zh}}` 占位标记（同一标题出现两次）。`init --template` 生成后两处标题均正确填入、作者被匿名替代，且模板自身 SHA-256 保持不变、Word 包内部仅正文 `word/document.xml` 发生受控更新。
 
-| 测试输入 | 期望 | 观察结果 |
+| 测试场景 | 期望行为 | 实测结果 |
 | --- | --- | --- |
-| 按该模板生成的盲审稿 | 页边距匹配，已知姓名检查通过 | 11 项 PASS、20 项 INFO，0 项 WARN、0 项 FAIL，退出码 0 |
-| 只把这份稿件的上边距由 2281 改成 900 个 Word 单位 | 报出页面设置偏差 | 10 项 PASS、20 项 INFO，仅 `Layout-1` 报 FAIL，退出码 1 |
+| 按学校模板生成的盲审稿 | 页边距与模板一致，敏感身份检查通过 | `11` PASS / `20` INFO / `0` WARN / `0` FAIL，退出码 `0` |
+| 单改上边距 `2281 → 900` dxa（4.02 → 1.59 cm） | 准确识别并阻断版式偏差 | 仅 `Layout-1` 报 FAIL，退出码 `1` |
+| 已有五节含横向宽表长稿对照三节模板 `repair` | 先按厘米输出每节差异预览，再另存修正副本 | 同步纸张、7 项页边距、奇偶页页眉、正文页码回 `1`，保留第 4 节 `841.9 × 595.3 pt` 横向宽表，审计 `FAIL: 0` |
+| 仅改标题样式字号 `23 → 15 pt` | 严格模式可阻断警告 | 默认退出 `0`、`--fail-on-warn` 退出 `1`，两份报告条目完全一致 |
+| 写回受保护原稿同名路径 | 拒绝覆盖输入文件 | 命令拒绝写入，原文件逐字节完好 |
 
-Word 边距的一个单位等于 1/20 磅。第一份模板规定的上边距约为 4.02 厘米，错误稿缩至约 1.59 厘米。INFO 表示该项提供信息、条件缺失或未启用；它不会计入自动通过数。
+独立的发布门禁同时验证博士（`phd-thesis`）、硕士（`master-thesis`）、开题（`proposal`）、中期（`midterm`）与轮转（`rotation`）五种模式，核对内置 `67` 项论文核查表，并通过 `17` 项 Python 回归测试（含 `<w:sdt>` 内容控件、自动编号标题、主题字体继承，以及图内 `>= 7.5 pt` 字号、禁“我”、仅在线未见刊留 DOI、实验时间统一、中文逗号/全角空格与作者简历全项自查）以及 `6` 项离线安装包端到端测试。
 
-## 从发行包验证错误能否被拦住
+## Word 实际打开后看到什么
 
-另一组测试从空目录离线安装本地生成的 npm 压缩包。它使用最小模拟对象检查注册入口，然后执行安装包内的命令行。Node 测试报告共 6 项通过，其中包括 1 个总测试和 5 个子测试。
-
-| 场景 | 对结果的独立核对 |
-| --- | --- |
-| 通用起稿、预设和检查清单 | 安装后能读取随包资源，初始化 DOCX 并导出检查清单。 |
-| 从学校 DOTX 起稿 | 验证分段标题替换、作者匿名和模板格式；盲审报告另列 4 项人工复核。 |
-| 单改标题样式定义 | 将字号从 23 磅改为 15 磅，仅 `Layout-TemplateStyles` 报 WARN。默认退出 0，加 `--fail-on-warn` 退出 1。两次报告的自动检查和汇总相同。 |
-| 同时改坏两处 | 将上边距从 1800 改为 720 个 Word 单位，并把已知姓名重新写入正文。退出 1，恰好检出 `Layout-1` 和 `Acad-10-Blind` 两项失败。 |
-| 输出路径与输入重名 | 尝试把新稿或报告写回受保护的输入文件时，命令拒绝写入；比对文件内容确认原件完好。 |
-
-独立的 Python 发布检查还运行了博士、硕士、开题、中期和轮转五种模式，并核对 Word 清单恰有 65 项。另有 4 组回归测试覆盖已知漏报、DOCX/DOTX 模板保留、输入输出保护等行为。这 65 项供作者对照自查；每次自动报告列出的条数随文档、预设和选项变化。当前终稿报告列出 3 项人工待办，盲审报告另加图片、签名和嵌入附件的身份检查。
-
-## Word 打开后看到什么
-
-这张图取自 Microsoft Word 16.0（build 16.0.17932）实际打开插件生成的 DOCX 并导出的单页 PDF。独立构造的院系 DOTX 使用 Letter 纸，Word 读回上边距 102 磅、左边距 78 磅、20 磅粗体标题、1 个页码域和 1 张嵌入图片。该样稿按模板审计为 12 项 PASS、20 项 INFO，0 项 WARN、0 项 FAIL。
+下图取自桌面 Microsoft Word 16.0（build `16.0.17932`）打开插件生成的盲审 DOCX 并导出的单页 PDF。使用 Letter 纸张构造模板，Word 原生读回上边距 `102 pt`、左边距 `78 pt`、`20 pt` 粗体标题、`1` 个活动页码域和 `1` 张内嵌图片，模板审计为 `12` PASS / `20` INFO / `0` WARN / `0` FAIL。
 
 ![Word 导出样稿，全页显示原页眉、替换后的中文标题、匿名作者、橙色示例图片和页脚页码 1](word-sample.png)
 
-页顶的英文文字来自原模板页眉。中文题目下面的作者栏已替换为“【匿名评审隐去】”。橙色方块是模板中的测试图片，底部的 1 来自 Word 页码域。这里核验的是一页受控样稿；长论文的分页、复杂跨页表格、更新后的目录页码和图片中的身份信息仍需打开 Word 或查看最终 PDF 核对。现有论文可对照模板审计，全文迁移到另一学校模板需另行排版。
+页顶英文文字来自原模板页眉，中文标题下方作者栏已自动替换为`【匿名评审隐去】`，底部页码 `1` 为可更新 Word 页码域。长论文最终分页、跨页复杂表格及照片扫描件是否露名，交稿前仍建议在桌面 Word 触发一次 `F9` 全选更新并目视复核最终 PDF。
 
-## 如何复现
+## 如何复现与本地测试
 
-仓库自带 GitHub Actions 工作流。Windows 和 Linux 作业覆盖注册契约、Word 资源、回归和离线压缩包安装；独立作业会安装固定版本的官方 DSH 宿主并运行真实 profile。可在 Actions 中选择 **Release checks → Run workflow** 检查当前提交，或从仓库根目录运行以下 PowerShell 命令。[工作流源码](../.github/workflows/release-checks.yml)
-
-```powershell
-# 准备 Node.js 24.9+、pnpm 11.25.0、Python 3.10+，在独立临时目录安装 DSH。
-$scratch = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString()))
-$env:DSH_RUNTIME = Join-Path $scratch.FullName 'host'
-$env:PYTHON = (Get-Command python -CommandType Application | Select-Object -First 1).Source
-npm install --prefix $env:DSH_RUNTIME --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.5
-$packed = npm pack --silent --ignore-scripts --pack-destination $scratch.FullName
-$env:DSH_PLUGIN_SPEC = Join-Path $scratch.FullName $packed
-node tests/dsh-host.mjs
-```
-
-成功时最后一行以 `DSH_E2E=PASS` 开头。如需测试公开仓库的特定版本，将 `DSH_PLUGIN_SPEC` 设为 `github:Spark-xY6/dsh-plugin-bio-thesis#<完整的40位提交SHA>`，再运行同一命令。以下命令分别用于复现模拟注册测试、Python 发布和回归检查、离线发行包测试。
+仓库提供离线与宿主测试入口（先设置临时目录环境变量，不污染工作区）：
 
 ```powershell
 node --test tests/dsh_plugin.test.mjs
-python -B -X utf8 tests/verify_release.py
-python -B -X utf8 tests/test_regressions.py -v
+conda run -n base python -B -X utf8 tests/verify_release.py
+conda run -n base python -B -X utf8 tests/test_regressions.py -v
 node --test tests/packed-e2e.mjs
 ```

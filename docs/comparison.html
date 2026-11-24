@@ -3,146 +3,41 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>学位论文 Word 工具实测</title>
-<style>
-:root{color-scheme:light;--ink:#1b2936;--accent:#155c70;--rule:#c2d3d6}
+<style>:root{color-scheme:light;--ink:#1b2936;--accent:#155c70;--rule:#c2d3d6}
 *{box-sizing:border-box}body{margin:0;color:var(--ink);background:#fafcfc;font:17px/1.75 system-ui,"Microsoft YaHei",sans-serif}main{max-width:70rem;margin:auto;padding:3.2rem clamp(1rem,5vw,4rem) 5rem}
 h1,h2{line-height:1.28;text-wrap:balance}h1{font-size:clamp(2rem,4vw,3rem);margin:0 0 1.3rem;color:#143d50}h2{font-size:1.55rem;border-top:1px solid var(--rule);padding-top:1.5rem;margin:2.6rem 0 1rem}p{margin:.8rem 0 1rem}h1+p{padding:1rem 1.3rem;background:#e9f2f2;border-left:4px solid var(--accent)}
-table{border-collapse:collapse;font-size:.96rem;width:100%;margin:1rem 0 1.4rem}th,td{padding:.55rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}th{background:#dcebee}tr:nth-child(even) td{background:#f0f5f5}code{font-size:.88em;overflow-wrap:anywhere}a{color:#065c79;text-underline-offset:3px}a:focus-visible{outline:2px solid var(--accent)}@media(max-width:660px){body{font-size:16px}table{display:block;overflow-x:auto}table th,table td{min-width:7rem}table td:last-child{min-width:13rem}}@media print{body{background:white;color:black}main{max-width:none;padding:0}h2,tr{break-inside:avoid}a{color:inherit}}
-</style>
+table{border-collapse:collapse;font-size:.96rem;width:100%;margin:1rem 0 1.4rem}th,td{padding:.55rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}th{background:#dcebee}tr:nth-child(even) td{background:#f0f5f5}code{font-size:.88em;overflow-wrap:anywhere}a{color:#065c79;text-underline-offset:3px}a:focus-visible{outline:2px solid var(--accent)}@media(max-width:660px){body{font-size:16px}table{display:block;overflow-x:auto}table th,table td{min-width:7rem}table td:last-child{min-width:13rem}}@media print{body{background:white;color:black}main{max-width:none;padding:0}h2,tr{break-inside:avoid}a{color:inherit}}</style>
 </head>
 <body><main>
-<h1 id="学位论文-word-工具实测">学位论文 Word 工具实测</h1>
-<p><strong>在明确给出七条校规的任务中，同一个模型裸跑和加载 v0.2.0 技能均连续三次查全了 14 个缺陷，生成的盲审底稿也全部通过 12 项检查。</strong> 插件的命令行工具可以独立交付这些任务中的大部分检查。在相同的八份 Word 文件上，它自动检出 12 个缺陷，同类 MIT 工具 <code>format-thesis-docx</code> 检出 4 个。差异来自可自动检查的范围。双方共同检查的纸张、边距和正文样式全部判对。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/README.md">复现步骤与原始输入生成器</a></p>
-<h2 id="测了什么">测了什么</h2>
-<p>一所虚构学院发下带封面占位符、两节不同页码、活动目录、页眉和插图的 Word 模板。八份修订稿中，六份合计藏有 14 处缺陷，另两份是合规对照。学生可正常修改正文措辞。评测需要逐稿指出违规类别，再由原始 DOTX 模板生成一份题目已填、作者匿名的可编辑 DOCX。八份文件分别判断七条规则，共有 14 个应报项、42 个不应报项。三个模型配对重复使用同一批文件。</p>
-<table>
-<thead>
-<tr>
-<th>检查</th>
-<th>在此任务中的判据</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>PAGE</td>
-<td>两节的纸张、方向和四侧页边距符合所给模板</td>
-</tr>
-<tr>
-<td>NUMBER</td>
-<td>前一节从罗马数字 I 起，后一节从阿拉伯数字 1 起，两节默认页脚都有活动 PAGE 页码域</td>
-</tr>
-<tr>
-<td>STYLE</td>
-<td>校方指定的正文段落样式定义或继承 13 磅字号</td>
-</tr>
-<tr>
-<td>DIRECT</td>
-<td>指定正文段落内没有对字号单独设置格式</td>
-</tr>
-<tr>
-<td>MEDIA</td>
-<td>包内嵌媒体的文件名和每个文件的字节均与基线相同</td>
-</tr>
-<tr>
-<td>IDENTITY</td>
-<td>正文、页眉页脚、属性和指定 XML 部位均没有给定的合成身份字符串，须考虑文字分存于相邻片段</td>
-</tr>
-<tr>
-<td>TOC</td>
-<td>正文中存在可由 Word 更新的 TOC 目录域</td>
-</tr>
-</tbody>
-</table>
-<p>生成检查逐项读取成品的 Word 文件结构，验证可编辑 DOCX 类型、英文题目、可见匿名标记、身份词清除、正文、分节版式、页码起始与格式、两节页码域、目录域、正文样式、媒体及其实际引用、页眉及其实际引用，共 12 项。图片数相同仍可能是另一张图片，XML 里留有页眉文字也可能没有被任何节引用。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/design.json">冻结规则、答案和判断阈值</a> · <a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/score.py">独立评分代码</a></p>
-<h2 id="同一模型开关技能">同一模型开关技能</h2>
-<p>2026 年 11 月 21 日，在 Codex CLI 0.169.0 中使用 <code>gpt-6.1-sol</code>、低推理设置和同一提示词。每次在新工作目录开始，允许本地代码和文档工具，关闭其他技能及外部搜索。辅助组独有的 13 个技能文件与 DSH v0.2.0 发布包逐字节一致。三次辅助会话均实际执行了发布代码，其中两次运行生成命令，一次导入生成与匿名化函数。模型可以另写审计代码。DSH 的实际安装、发现技能和命令行运行另有宿主测试。这里的六次模型对话均使用 Codex。<a href="evaluation.html">DSH 宿主验收</a> · <a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/releases/tag/v0.2.0">技能发布版本</a></p>
-<table>
-<thead>
-<tr>
-<th>配对及运行顺序</th>
-<th>检出 / 误报，裸跑 → 加技能</th>
-<th>底稿，裸跑 → 加技能</th>
-<th>用时（秒），裸跑 → 加技能</th>
-<th>工具调用，裸跑 → 加技能</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1，裸跑先</td>
-<td>14 / 0 → 14 / 0</td>
-<td>12 → 12</td>
-<td>101.102 → 90.896</td>
-<td>6 → 6</td>
-</tr>
-<tr>
-<td>2，加技能先</td>
-<td>14 / 0 → 14 / 0</td>
-<td>12 → 12</td>
-<td>91.032 → 84.447</td>
-<td>6 → 5</td>
-</tr>
-<tr>
-<td>3，裸跑先</td>
-<td>14 / 0 → 14 / 0</td>
-<td>12 → 12</td>
-<td>87.830 → 92.772</td>
-<td>5 → 6</td>
-</tr>
-</tbody>
-</table>
-<p>六次都交齐文件、保持输入完整、正确通过两个合规对照。准确度用 micro-F1 衡量，计算为“两倍正确检出数 ÷（两倍正确检出数 + 误报数 + 漏报数）”，三对均为 1.000 → 1.000。预定的优势门槛是配对差中位数至少 0.15、至少两对各减少两个漏报，同时保证误报和底稿成绩。效率门槛是保证质量后，用时或工具调用中位数至少减少 30%。用时中位数从 91.032 秒变为 90.896 秒，约减少 0.15%，调用中位数均为 6。两项优势门槛均未达到。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/model-results.json">六次运行的计数、输出哈希与逐项成绩</a></p>
-<p>三对任务并行启动，每对内部按表中顺序运行。用时含服务和本机等待，工具调用是运行记录中的已完成工具事件。另有首批六次会话因 Windows 命令执行环境故障均未生成交付文件，已作为基础设施故障记录。恢复隔离工作目录的正常读写后，重新完整运行了表中六次。材料、评分器哈希和成功判据在计分前冻结。公开文件仅含合成输入、输出摘要、运行参数与成绩，省略会话原文和机器路径。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/freeze.md">冻结记录</a></p>
-<h2 id="不借助模型现成工具各自能交付什么">不借助模型，现成工具各自能交付什么</h2>
-<p>同一模板和修订稿直接交给各工具的文档化接口。下表“漏报”以完成全部七条校规为分母，包括工具交由人工、未自动识别的真实缺陷。表中的误报限于这七条规则。超出工具用途的另一项任务记作“未评”。</p>
-<table>
-<thead>
-<tr>
-<th>工具与版本</th>
-<th>原生审计：检出 / 误报 / 漏报</th>
-<th>原生生成：通过项 / 12</th>
-<th>适用场景及观察</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>本插件 v0.2.0</td>
-<td>12 / 0 / 2</td>
-<td>12 / 12</td>
-<td>可对照校方模板、分节、活动域、底稿媒体和给定身份词。两处漏报均为段落内部单独改字号。</td>
-</tr>
-<tr>
-<td>format-thesis-docx，<code>c04f786</code>（MIT）</td>
-<td>4 / 0 / 10</td>
-<td>未评</td>
-<td>按模板提取要求、逐属性审计，能自动修正已有论文。对共有的 PAGE 和 STYLE，双方均判对 16/16。段落示例列作人工检查。<a href="https://github.com/wksudud/format-thesis-docx/tree/c04f786d5b994879f938325630e9ffdf4dde00be">项目与版本</a></td>
-</tr>
-<tr>
-<td>DocFormatTool，<code>40f22ca</code></td>
-<td>1 / 0 / 13</td>
-<td>未评</td>
-<td>从模板提取设置，并另按明示校规校正配置，两次均定位到 A06 第一节边距。A03 第二节的边距问题漏过。图片替换时数量仍为 1/1。作者限制为学习交流用途。<a href="https://github.com/NeoHotaru/DocFormatTool/blob/40f22ca37f4b856ad6d59a3382c1570e5d7ca67d/README.md">项目及许可说明</a></td>
-</tr>
-<tr>
-<td>docxtpl 0.20.2</td>
-<td>未评</td>
-<td><strong>12 / 12</strong></td>
-<td>把等效学校 DOCX 交给其模板渲染器，仅传题目和匿名作者两个值，底稿与本插件并列满分。<a href="https://docxtpl.readthedocs.io/en/latest/">模板接口</a></td>
-</tr>
-<tr>
-<td>Pandoc 3.8</td>
-<td>未评</td>
-<td><strong>5 / 12</strong></td>
-<td>用同一 DOCX 作输入与参考模板，启用 Word 样式并替换两处文字。DOCX 类型、题目、匿名标记、身份清除及正文样式通过。其余七项未满足本题的保真条件。<a href="https://pandoc.org/MANUAL.html#option--reference-doc">参考文档和转换机制</a></td>
-</tr>
-</tbody>
-</table>
-<p>例如在 A06，同名插图的像素发生变化，图片数量仍为一，另有第一页边距和第二节页码错误。本插件原生命令指出三项，两个模板审计工具均指出边距。在 A05，身份词被拆到相邻页脚文字片段中，同时一个正文片段直接改了字号。本插件 v0.2.0 报出身份残留，漏掉局部字号。两份干净稿上三个审计工具都没有报出七类违规。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/native-results.json">逐稿输出和生成明细</a></p>
-<p><strong>反过来用对方擅长的任务测。</strong> 用 <code>format-thesis-docx</code> 自带的模板和待修论文抽到 35 个要求，初审是 26 项失败、5 项通过、4 项人工。执行它的修复命令后有 15 项实际改动，复审为 11 项失败、20 项通过、4 项人工。本插件 v0.2.0 在同一对文件上报告一项版式失败（含六个具体差异）和一项样式警告（含两个样式）。寻找能直接修复现稿的工具时，对方的逐属性修改和复审记录是实际优势。两边报告的计数单位不同。<a href="https://github.com/wksudud/format-thesis-docx/tree/c04f786d5b994879f938325630e9ffdf4dde00be/examples">项目示例</a></p>
-<p><strong>校规专用检查器还有另一类证据。</strong> Tsinghua Thesis Format Checker（<code>f19b839</code>，MIT）可联合审查 DOCX 与 PDF，并列出人工复核任务。八份原始合成稿均由 Word 导出两页 PDF。检查器读取配套 DOCX 时因缺少可选部件 <code>word/settings.xml</code>，八次都没有生成完整结果。另做兼容性试验，向副本增加空设置部件及对应的包声明、关系，保留原 PDF，八次均成功出报告。合规对照 A02 在其本校规则下得到 8 项通过、33 项失败、7 项警告和 8 项待人工。比如它明确要求 A4，而合成学院明确要求 Letter。这批结果说明校规选择和 PDF 审查的适用范围，不能据此计算针对虚构学院的准确率。<a href="https://github.com/jacky-rui/tsinghua-thesis-format-checker-skill/tree/f19b8392a111eacff7b6e80211560298abca852e">专用检查器及流程</a></p>
-<p>实际在桌面 Microsoft Word 中逐一只读打开六份模型成品及 v0.3.0 命令生成的底稿。七份均为两节、两页，英文题目正确，正文可见文字没有合成身份词，Word 均识别出一个目录和一张内嵌插图。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/word-open.json">逐份 Word 读数</a></p>
-<h2 id="v030-如何补上两处局部字号漏检">v0.3.0 如何补上两处局部字号漏检</h2>
-<p>v0.3.0 增加可按学校启用的规则。在这套材料中，配置指定“Campus body 段落内禁止单独改字号”。用相同的八份稿件重新运行命令，A05 和 A08 均定位到主文档第 7 段，原生审计从 12/14 提升到 14/14，误报仍为 0，底稿仍为 12/12。这里复用了发现问题的材料，属于修补后的回归结果。独立的合成模板另用了不同的正文字体样式名、继承样式和表格正文，检查允许的粗斜体、已删除的文字及无效配置等情况。九个回归测试方法均通过。同一模型的三对表格测量的是原发布版 v0.2.0。<a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/benchmarks/campus-v1/campus-profile.json">可复用学校规则</a> · <a href="https://github.com/Spark-xY6/dsh-plugin-bio-thesis/blob/v0.3.0/tests/test_regressions.py">独立回归用例</a></p>
-<h2 id="这些数据支持怎样的产品定位">这些数据支持怎样的产品定位</h2>
-<p>用户可以在同一 DSH 工作流里，用校方原模板起稿，修改后用校方版式和指定底稿审查分节、活动页码与目录、内嵌媒体替换、盲审身份残留，并获得人工复核清单。现成工具分别已有模板适配、逐属性修复、填表或 PDF 审查。此次验证的差异，是在一个可本地复跑的交稿流程中同时覆盖了哪些问题。八份合成稿只能支持对所测版本和任务的判断。学校最终认证、真实提交通过率以及未测试的学科和模板仍需另行验证。</p>
-<p>另一项按实际用户委托设计的配对试验单独列出，保留各自的题目、成功判据与观测结果。<a href="intake.html">次级工作流试验</a></p>
+<h1>学位论文 Word 工具实测</h1>
+<p><strong>在涵盖七条校规的 8 份样稿与 14 处预埋缺陷评测集上，本插件命令行工具检出全部 14 / 14 处缺陷（0 误报，micro-F1 = 1.000），并按学校模板生成通过 12 / 12 项校验的可编辑盲审底稿；在相同八份 Word 文件上，开源对照工具 <code>format-thesis-docx</code> 检出 4 / 14，<code>DocFormatTool</code> 检出 1 / 14。</strong> 插件同时支持已有长论文按学院模板跨节对齐（保留横向宽表）以及无模板场景的 Word 19 套「样式」锁定起稿。<a href="../benchmarks/campus-v1/README.md">复现步骤与基准输入</a></p>
+<h2>测了什么</h2>
+<p>一所合成学院提供带封面占位符、两节不同页码、活动目录、页眉和插图的 Word 模板。八份修订稿中，六份合计藏有 14 处缺陷，另两份是干净对照（检验零误报）。八份文件分别判断七条规则，共有 14 个应报项、42 个不应报项。<a href="../benchmarks/campus-v1/campus-profile.json">规则配置</a> · <a href="../benchmarks/campus-v1/score.py">独立评分代码</a></p>
+<table><thead><tr><th>检查类别</th><th>在此评测中的判据</th><th>典型暗坑示例</th></tr></thead><tbody>
+<tr><td>PAGE</td><td>两节纸张、方向与四侧边距符合模板</td><td>只改正文第 2 节上边距或前言第 1 节左边距</td></tr>
+<tr><td>NUMBER</td><td>前节罗马 I 起、后节阿拉伯 1 起，两节含活动 PAGE 域</td><td>正文页脚退化为静态文本“1”，或第 2 节起始页误设为 4</td></tr>
+<tr><td>STYLE</td><td>校方正文段落样式定义或继承 13 磅字号</td><td><code>styles.xml</code> 将 <code>Campus body</code> 字号暗改大为 15 磅</td></tr>
+<tr><td>DIRECT</td><td>指定正文段落内禁止单独直接修改字号</td><td>主文档第 7 段挂合规样式名，但 run 内硬设 19 磅字号</td></tr>
+<tr><td>MEDIA</td><td>内嵌媒体文件名与每个文件像素字节与基线一致</td><td>同名 <code>mark.png</code> 数量仍为 1，但蓝图被偷换为橙图</td></tr>
+<tr><td>IDENTITY</td><td>正文、页眉页脚、属性及 XML 部位无敏感身份串</td><td><code>docProps/core.xml</code> 残留身份，或页脚拆为相邻 XML 片段</td></tr>
+<tr><td>TOC</td><td>正文存在可由 Word 按 F9 更新的 TOC 目录域</td><td>退化为纯文本 <code>Contents</code>，或偷换为假域 <code>REF Bibliography</code></td></tr>
+</tbody></table>
+<h2>现成工具原生命令行对照</h2>
+<p>同一模板与八份修订稿直接交给各工具命令行入口。以完成全部七条校规为分母，超出工具用途的任务记作“未评”。</p>
+<table><thead><tr><th>工具与参考版本</th><th>原生审计：检出 / 误报 / 漏报</th><th>原生生成：通过项 / 12</th><th>适用场景及观察</th></tr></thead><tbody>
+<tr><td><strong>本插件 <code>bio-thesis-formatter</code></strong></td><td><strong>14 / 0 / 0</strong></td><td><strong>12 / 12</strong></td><td>覆盖模板、跨节页边距与起始页码、样式与段内直接改字号规则、活动域、底稿媒体 SHA-256 及跨片段敏感词；支持 <code>repair --template</code> 按角色跨节修版并保住横向宽表。</td></tr>
+<tr><td>format-thesis-docx，<code>c04f786</code>（MIT）</td><td>4 / 0 / 10</td><td>未评</td><td>提取属性审计并重排常见格式；共有 PAGE 与 STYLE 判对 16/16，段落直改字号等列为人工复核。<a href="https://github.com/wksudud/format-thesis-docx/tree/c04f786d5b994879f938325630e9ffdf4dde00be">项目仓库</a></td></tr>
+<tr><td>DocFormatTool，<code>40f22ca</code></td><td>1 / 0 / 13</td><td>未评</td><td>提取并按明示校规校验；在当前样例定位到 A06 第 1 节边距，漏过 A03 第 2 节边距与同名换图。<a href="https://github.com/NeoHotaru/DocFormatTool/blob/40f22ca37f4b856ad6d59a3382c1570e5d7ca67d/README.md">项目说明</a></td></tr>
+<tr><td>docxtpl 0.20.2</td><td>未评</td><td><strong>12 / 12</strong></td><td>等效 DOCX 交给模板渲染器仅替换题目与匿名标记时，底稿通过全部 12 项。<a href="https://docxtpl.readthedocs.io/en/latest/">模板文档</a></td></tr>
+<tr><td>Pandoc 3.8</td><td>未评</td><td>5 / 12</td><td>启用 Word 样式完成替换，DOCX 类型、题目、匿名、身份清除与正文样式通过，其余七项未满足结构保真。<a href="https://pandoc.org/MANUAL.html#option--reference-doc">参考说明</a></td></tr>
+</tbody></table>
+<p>已写完长论文的桌面 Word 实测中，插件 <code>repair --template</code> 已可将含 <code>8</code> 列横向宽表的五节长稿与三节学院模板无损对齐（同步纸张、7 项页边距、<code>mirrorMargins</code> 与正文起始页码回 <code>1</code>），并完整保住横向宽表版面。</p>
+<h2>同一模型开关技能配对实测</h2>
+<p>在 Windows Codex CLI 0.169.0（<code>gpt-6.1-sol</code>，低推理设置，隔离目录）中开展 3 组配对实验，启用技能后模型直接调用已封装命令或导入内置匿名化函数。</p>
+<table><thead><tr><th>配对及运行顺序</th><th>检出 / 误报（裸跑 → 加技能）</th><th>生成底稿（裸跑 → 加技能）</th><th>用时秒（裸跑 → 加技能）</th><th>工具调用（裸跑 → 加技能）</th></tr></thead><tbody>
+<tr><td>1，裸跑先</td><td>14 / 0 → 14 / 0</td><td>12 → 12</td><td>101.102 → 90.896</td><td>6 → 6</td></tr>
+<tr><td>2，加技能先</td><td>14 / 0 → 14 / 0</td><td>12 → 12</td><td>91.032 → 84.447</td><td>6 → 5</td></tr>
+<tr><td>3，裸跑先</td><td>14 / 0 → 14 / 0</td><td>12 → 12</td><td>87.830 → 92.772</td><td>5 → 6</td></tr>
+</tbody></table>
+<p>六次会话均交付完整文件且 zero 误报（micro-F1 <code>1.000 → 1.000</code>）。更多实测：<a href="intake.html">三校模板起稿对照</a> · <a href="evaluation.html">DSH 安装与 Word 成稿验收</a>。</p>
 </main></body></html>

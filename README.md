@@ -1,39 +1,36 @@
-# Thesis Formatting Without Fragile Hacks · bio-thesis
+# Word 学位论文排版与自查助手 (`dsh-plugin-bio-thesis`)
 
-[中文说明](README.zh.md) · [No-Template Benchmark](docs/no-template-comparison.md) · [3-School Template Trial](docs/intake.md) · [14-Defect Audit](docs/comparison.md) · [Word Evaluation](docs/evaluation.md)
+[English](README.en.md) · 纯 Python 标准库（零第三方依赖）· 原稿全程只读（另存副本）
 
-Whether your department gives you an official `.dotx`/`.docx` file **or only a plain-text list of formatting rules**, letting a coding agent piece together raw Word XML from scratch leaves styles unbound—so the first time you edit a paragraph or insert a table in Microsoft Word, headings, indents, and spacing fall apart.
+**不用手写临时脚本，也不用逐节人肉调格式：没有学校模板时，`< 2` 秒把严谨的学位论文规范锁进 Word 顶部 19 套「样式」，带齐作者简历直出可续写底稿；手里已有学院 `.dotx`/`.docx` 模板和长论文时，先预览各节边距、页眉与页码差了多少厘米，再另存保留横向宽表的修正副本，并按多类 67 项细节清单交稿前逐条自查。**
 
-Using Python's standard library only (zero third-party `pip` packages), `dsh-plugin-bio-thesis` preserves official school templates cleanly **or adapts its built-in desensitized master via `--profile-config` JSON**—binding every heading, body paragraph, three-line table, figure caption, table title, and bibliography rule into **19 dedicated `qFormat` Word top-ribbon Styles** alongside ready-to-edit examples (`图 1.1` / `表 1.1`). Before submission, the audit tool catches shifted section margins, `core.xml` and split-run blind-review leaks, italic genes/species, `µL` typos, vertical table lines, and uncited references.
+![Word 顶部自动锁定 19 套样式、多节对齐与 67 项多类自查实拍](docs/images/no-template-showcase.png)
 
-![Word top-ribbon 19 locked styles, redacted cover, isolated TOC, and three-line table render](docs/images/no-template-showcase.png)
+## 直接这样对 AI 说
 
-## Measured Benchmarks & Honest Scope
+| 你的需要 | 直接发给助手 |
+| --- | --- |
+| 对照学院模板并修版 | “对照《学院模板.dotx》检查《论文.docx》各节边距与页码，先给我预览差异，再另存为《论文-调整后.docx》。” |
+| 无模板按严谨规范起稿 | “按附件里的格式要求用 bio-thesis-formatter 生成《论文工作稿.docx》，把标题、正文、图注、三线表和作者简历全锁进 Word 样式。” |
+| 交稿前多类格式与盲审自查 | “检查《论文.docx》：核对正文不出现‘我/我们’、仅在线未见刊保留 DOI、图片字号、子图与设备厂商中文逗号、全角空格及盲审隐名情况。” |
 
-- **Writing from written rules only (no template file)**: On a neutral formatting spec, an unassisted coding subagent wrote `1,212` lines of Python yet tripped `7` audit failures (`29` unstructured styles, missing caption/bibliography styles, left-shifted cover date, and an out-of-range `[9]` reference). With `bio-thesis`, one command creates a `FAIL: 0` 15-page draft in under `2s` (`0` custom lines), and switching `--profile-config` JSON cleanly adapts `word/styles.xml` across universities (`某高校 SimSun 20pt / Nature` to `乙高校 FangSong 22pt / GB/T 7714`, both `FAIL: 0`).
-- **3-school `.dotx`/`.docx` intake & open-source audit comparison**: Zero glue code written across `18/18` Word-opened deliverables (`33–37` ad-hoc lines when bare). Across shared 7-school rules with `14` planted defects, the native auditor caught **`14/14` (100%)**, compared against `format-thesis-docx` (`4/14`) and `DocFormatTool` (`1/14`). Full logs are in [docs/no-template-comparison.md](docs/no-template-comparison.md) and [docs/comparison.md](docs/comparison.md).
-- **Important guard**: Do not let an agent manually patch raw OOXML after running `bio_thesis.py init`—in one earlier autonomous session, manual post-edit scripts corrupted `styles.xml`/`sectPr` so Word refused to open the file. Always configure fonts, margins, and citation styles through `--profile-config` JSON and CLI flags.
+## 为什么做、有什么用与实测效果
 
-## 1-Minute Install & CLI
+- **告别“一改就崩”的临时脚本**：让普通 AI 现写 `python-docx` 往往产生上千行散代码，Word 顶部样式栏堆满未绑定杂项，人手一改就串版。本插件将标题、正文、图注、表题、三线表与参考文献全部锁定到 Word 顶部 **19 套可用样式**，同一命令切换不同学校配置（如 `宋体 20pt / Nature` 切至 `仿宋 22pt / GB/T 7714`）自动重算；相比无插件裸跑写出 `1,212` 行代码仍留 `7` 处格式错漏，插件 **`0` 行临时代码、`< 2` 秒直出 15 页标准底稿（含结构化作者简历）**，盲审模式下自动隐去姓名与单位信息。
+- **多节含横向宽表也能对齐学院模板**：分节数不同的长论文按「封面 / 前言罗马 / 阿拉伯正文 / 横向宽表岛」自动匹配模板，同步纸张、7 项页边距（含页眉/页脚距与装订线）、奇偶页对称页眉与正文起始页码 `1`，同时保住中间的横向宽表页不被拉歪或重置页码。
+- **默认自带严谨的多类 67 项核查清单**：当用户未额外指定自定义格式时，默认启用细颗粒学术排版规则并给出可执行检查项——涵盖 **图内文字不小于 6 号字（`7.5 pt`）**、**正文客观第三人称（禁用“我/我们/本人”）**、**文献仅在线未见刊保留 `DOI`（正式见刊条目禁留多余 DOI）**、**实验程序时间单位全文统一中文或英文**、**多子图（`图 1.1 A，B`）与设备厂商（`P-2000，Sutter Instrument`）强制使用中文逗号**、**中英文数字间半角空格与中文项间全角空格**，以及 **作者简历完整度与盲审隐名清除**。在 8 份含 14 处结构与隐名暗坑的测试稿上检出 **`14/14`（0 误报）**，高于同类开源工具（`1/14`–`4/14`）。
 
-Requires Python 3.10+ (standard library only) and DeepSeek Harness `0.2.2-rc.5+`:
+## 30 秒安装与命令行用法
 
 ```powershell
-dsh plugin --profile web add "github:Spark-xY6/dsh-plugin-bio-thesis#v0.3.0"
+dsh plugin --profile web add (Resolve-Path '.\dsh-plugin-bio-thesis-0.5.0.tgz').Path
 ```
 
-After restarting the profile, send whichever prompt fits your files:
-
-> **Written rules only (no template):** Use bio-thesis-formatter to adapt the built-in master via `--profile-config` JSON for my formatting rules (do not hand-patch generated XML afterward) to create `draft.docx`, and audit `submitted.docx` against those rules into `review.md`.
-
-> **Official `.dotx`/`.docx` template on hand:** Use bio-thesis-formatter to create `draft.docx` from `school.dotx` in blind review stage with title `"Example Study"`. Compare `revised.docx` with `school.dotx` and output `review.md` listing visual items left to verify in Word.
-
-Or run offline without DSH:
-
-```sh
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py init --profile-config presets/custom-university.example.json --mode phd-thesis --review-stage blind --output draft.docx --title-zh "Example Study" --author "Example Author"
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py audit --docx revised.docx --profile-config presets/custom-university.example.json --review-stage blind --sensitive-names "Example Author,Example Advisor" --md-report review.md
-python -B skills/bio-thesis-formatter/scripts/bio_thesis.py export-checklist --output checklist.docx
+```powershell
+$cli = 'skills/bio-thesis-formatter/scripts/bio_thesis.py'
+python -B $cli repair --docx '论文.docx' --template '学院模板.dotx'
+python -B $cli repair --docx '论文.docx' --template '学院模板.dotx' --output '论文-调整后.docx'
+python -B $cli audit --docx '论文-调整后.docx' --template '学院模板.dotx' --base-docx '论文.docx' --md-report '格式检查.md'
 ```
 
-Shipped placeholder tables and citations are layout demonstrations only; refresh TOC page numbers in Word (`F9`) and inspect signatures and embedded images before submission. Additional references: [docs/intake.md](docs/intake.md), [docs/alternatives.md](docs/alternatives.md), [docs/evaluation.md](docs/evaluation.md). [MIT License](LICENSE).
+[起稿对照](docs/intake.md) · [测试稿与开源对比](docs/comparison.md) · [无模板起稿实测](docs/no-template-comparison.md) · [安装与验证说明](docs/evaluation.md) · [MIT License](LICENSE)

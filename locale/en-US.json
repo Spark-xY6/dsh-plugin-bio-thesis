@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Word Thesis Templates and Audit",
-    "description": "Use a university Word template, check a draft's formatting and blind-review terms, and export an editable 65-item checklist.",
-    "detail": "README.md"
+    "title": "Thesis Layout Repair & Format Checker",
+    "description": "Check an existing Word thesis against your school template, repair section margins and page numbering on a copy, or start a clean draft.",
+    "detail": "README.en.md"
   }
 }
