@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Thesis Layout Repair & Format Checker",
-    "description": "Lock 19 Word Ribbon styles & Author CV in <2 s without a template, align multi-section drafts to school .dotx templates, and run a 67-item format & blind-review check.",
+    "title": "Thesis Layout Repair & Life-Science Format Checker",
+    "description": "Lock 19 reusable Word Ribbon styles in <2 s, run a built-in 67-item life-science self-check (genes, enzymes, units, Nature DOIs, blind review), and align multi-section drafts with wide tables to school templates.",
     "detail": "README.en.md"
   }
 }
